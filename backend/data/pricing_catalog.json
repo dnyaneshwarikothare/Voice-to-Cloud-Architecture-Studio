@@ -1,0 +1,107 @@
+{
+  "catalog_version": "2026.1",
+  "currency": "USD",
+  "disclaimer": "Approximate estimate based on configured pricing data.",
+  "aws": {
+    "compute": {
+      "small": { "service": "AWS ECS Fargate (0.5 vCPU, 1GB)", "hourly": 0.024, "monthly": 17.52 },
+      "medium": { "service": "AWS ECS Fargate (1 vCPU, 2GB)", "hourly": 0.048, "monthly": 35.04 },
+      "large": { "service": "AWS ECS Fargate (2 vCPU, 4GB)", "hourly": 0.096, "monthly": 70.08 },
+      "serverless": { "service": "AWS Lambda", "per_million_requests": 0.20, "base_monthly": 5.00 }
+    },
+    "database": {
+      "small": { "service": "Amazon RDS PostgreSQL (db.t4g.micro)", "monthly": 18.25 },
+      "medium": { "service": "Amazon RDS PostgreSQL (db.t4g.medium)", "monthly": 54.75 },
+      "large": { "service": "Amazon RDS PostgreSQL (db.m6g.large)", "monthly": 146.00 },
+      "storage_per_gb": 0.115,
+      "multi_az_multiplier": 2.0
+    },
+    "cache": {
+      "small": { "service": "Amazon ElastiCache Redis (cache.t4g.micro)", "monthly": 14.60 },
+      "medium": { "service": "Amazon ElastiCache Redis (cache.t4g.small)", "monthly": 29.20 },
+      "large": { "service": "Amazon ElastiCache Redis (cache.m6g.large)", "monthly": 116.80 }
+    },
+    "storage": {
+      "service": "Amazon S3 Standard",
+      "per_gb": 0.023
+    },
+    "network": {
+      "egress_per_gb": 0.09
+    },
+    "loadbalancer": {
+      "service": "AWS Application Load Balancer (ALB)",
+      "monthly": 22.50
+    },
+    "gateway": {
+      "service": "Amazon API Gateway",
+      "per_million_requests": 1.00,
+      "base_monthly": 3.50
+    },
+    "cdn": {
+      "service": "Amazon CloudFront",
+      "per_gb": 0.085,
+      "base_monthly": 2.50
+    },
+    "queue": {
+      "service": "Amazon SQS / SNS",
+      "per_million_requests": 0.40,
+      "base_monthly": 1.00
+    },
+    "auth": {
+      "service": "Amazon Cognito",
+      "per_user_above_free": 0.0055,
+      "base_monthly": 0.00
+    }
+  },
+  "gcp": {
+    "compute": {
+      "small": { "service": "GCP Cloud Run (0.5 vCPU, 1GB)", "hourly": 0.021, "monthly": 15.33 },
+      "medium": { "service": "GCP Cloud Run (1 vCPU, 2GB)", "hourly": 0.042, "monthly": 30.66 },
+      "large": { "service": "GCP Cloud Run (2 vCPU, 4GB)", "hourly": 0.084, "monthly": 61.32 },
+      "serverless": { "service": "GCP Cloud Functions", "per_million_requests": 0.18, "base_monthly": 4.50 }
+    },
+    "database": {
+      "small": { "service": "GCP Cloud SQL PostgreSQL (db-f1-micro)", "monthly": 16.50 },
+      "medium": { "service": "GCP Cloud SQL PostgreSQL (db-custom-2-7680)", "monthly": 51.20 },
+      "large": { "service": "GCP Cloud SQL PostgreSQL (db-custom-4-15360)", "monthly": 138.00 },
+      "storage_per_gb": 0.105,
+      "multi_az_multiplier": 1.9
+    },
+    "cache": {
+      "small": { "service": "GCP Memorystore Redis (Basic 1GB)", "monthly": 13.50 },
+      "medium": { "service": "GCP Memorystore Redis (Standard 2GB)", "monthly": 27.00 },
+      "large": { "service": "GCP Memorystore Redis (Standard 6GB)", "monthly": 98.50 }
+    },
+    "storage": {
+      "service": "GCP Cloud Storage Standard",
+      "per_gb": 0.020
+    },
+    "network": {
+      "egress_per_gb": 0.085
+    },
+    "loadbalancer": {
+      "service": "GCP Cloud Load Balancing",
+      "monthly": 19.50
+    },
+    "gateway": {
+      "service": "GCP API Gateway",
+      "per_million_requests": 0.90,
+      "base_monthly": 3.00
+    },
+    "cdn": {
+      "service": "GCP Cloud CDN",
+      "per_gb": 0.080,
+      "base_monthly": 2.00
+    },
+    "queue": {
+      "service": "GCP Cloud Pub/Sub",
+      "per_million_requests": 0.35,
+      "base_monthly": 1.00
+    },
+    "auth": {
+      "service": "GCP Firebase Auth / Identity Platform",
+      "per_user_above_free": 0.0050,
+      "base_monthly": 0.00
+    }
+  }
+}

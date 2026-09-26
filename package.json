@@ -1,0 +1,31 @@
+{
+  "name": "voice-to-cloud-architecture-studio",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "predev:all": "node scripts/free-ports.mjs",
+    "dev:backend": "python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000 --reload --reload-dir backend",
+    "dev:frontend": "node scripts/wait-for-backend.mjs && npm run dev",
+    "dev:all": "concurrently -k --kill-others-on-fail -n \"backend,frontend\" -c \"cyan.bold,green.bold\" \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "start": "npm run dev:all",
+    "server": "python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000 --reload --reload-dir backend",
+    "restart": "restart.bat",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "node test-studio.mjs"
+  },
+  "dependencies": {
+    "canvas-confetti": "^1.9.4",
+    "lucide-react": "^0.475.0",
+    "mermaid": "^10.9.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "concurrently": "^10.0.5",
+    "vite": "^5.4.14"
+  }
+}
