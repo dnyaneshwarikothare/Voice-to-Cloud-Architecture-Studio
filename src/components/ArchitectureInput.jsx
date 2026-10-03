@@ -19,21 +19,21 @@ const CONVERSATIONAL_COMMANDS = [
 ];
 
 export function ArchitectureInput({
-  value,
+  value = '',
   onChange,
   onGenerate,
   onClear,
   onConversationalCommand,
-  isProcessing
+  isProcessing = false
 }) {
-  const isCommand = /^\s*(add|remove|delete|use|switch|make|reduce|what\s+if)\b/i.test(value);
+  const isCommand = /^\s*(add|remove|delete|use|switch|make|reduce|what\s+if)\b/i.test(value || '');
 
   const handleSubmit = () => {
-    if (!value.trim() || isProcessing) return;
+    if (!value?.trim() || isProcessing) return;
     if (isCommand && onConversationalCommand) {
       onConversationalCommand(value.trim());
     } else {
-      onGenerate();
+      onGenerate && onGenerate();
     }
   };
 
@@ -99,7 +99,7 @@ export function ArchitectureInput({
             className="btn btn-accent"
             style={{ flex: 1, padding: '9px 14px', background: '#0284c7' }}
             onClick={handleSubmit}
-            disabled={isProcessing || !value.trim()}
+            disabled={isProcessing || !value?.trim()}
           >
             <Wrench size={15} />
             {isProcessing ? 'Applying Architecture Edit...' : 'Apply Conversational Edit'}
@@ -109,7 +109,7 @@ export function ArchitectureInput({
             className="btn btn-accent"
             style={{ flex: 1, padding: '9px 14px' }}
             onClick={handleSubmit}
-            disabled={isProcessing || !value.trim()}
+            disabled={isProcessing || !value?.trim()}
           >
             <Sparkles size={15} />
             {isProcessing ? 'Analyzing Requirements...' : 'Generate Architecture Diagram'}

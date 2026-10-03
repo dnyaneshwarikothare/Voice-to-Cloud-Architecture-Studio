@@ -232,5 +232,191 @@ export function getArchitectureOptimizations(architecture) {
     });
   }
 
+  // 6. Suggestion: Add Database Read Replica
+  const hasDbReplica = components.some(c => 
+    c.id.includes('replica') || (c.name && c.name.toLowerCase().includes('replica'))
+  );
+  if (databases.length > 0 && !hasDbReplica && backends.length > 0) {
+    suggestions.push({
+      id: 'opt_add_db_replica',
+      title: 'Add PostgreSQL / Cloud SQL Read Replica',
+      category: 'Scalability & Performance',
+      problem: 'Primary database processes all write mutations and high-volume read queries simultaneously.',
+      reason: 'Asynchronous read replicas isolate read-heavy workloads (reporting, search, dashboards), reducing primary DB contention.',
+      suggestedSolution: 'Provision an automated read replica alongside the primary database.',
+      impact: '📈 +14 Scalability score | ~$24.00/mo managed replica',
+      apply: (arch) => {
+        const replicaId = 'db_read_replica';
+        const primaryDb = databases[0];
+        const newComp = {
+          id: replicaId,
+          name: 'PostgreSQL Read Replica',
+          type: COMPONENT_TYPES.DATABASE,
+          tier: 'standard',
+          technology: primaryDb.technology || 'PostgreSQL',
+          description: 'Asynchronous read replica offloading queries'
+        };
+        const updatedComponents = [...arch.components, newComp];
+        const newConnections = [
+          ...arch.connections,
+          {
+            from: primaryDb.id,
+            to: replicaId,
+            label: 'Replication Stream'
+          }
+        ];
+        backends.forEach(be => {
+          newConnections.push({
+            from: be.id,
+            to: replicaId,
+            label: 'Read Queries'
+          });
+        });
+        return {
+          ...arch,
+          components: updatedComponents,
+          connections: newConnections
+        };
+      }
+    });
+  }
+
+  // 7. Suggestion: Increase Backend Instances & Horizontal Auto-Scaling
+  const hasScaledCluster = backends.some(b => 
+    (b.instances && b.instances > 1) || (b.name && b.name.includes('Cluster'))
+  );
+  if (backends.length > 0 && !hasScaledCluster) {
+    suggestions.push({
+      id: 'opt_scale_backends',
+      title: 'Increase Backend Instances & Multi-AZ Auto-Scaling',
+      category: 'Availability & Scalability',
+      problem: 'Backend services run on a single compute node, representing a single point of failure under peak traffic.',
+      reason: 'Auto-scaling across multiple availability zones maintains target request latency and prevents service dropouts.',
+      suggestedSolution: 'Scale backend to a 3-node redundant cluster with automated CPU/memory scale-out policies.',
+      impact: '🛡️ +16 Availability score | Elastic on-demand compute',
+      apply: (arch) => {
+        const updatedComponents = arch.components.map(c => {
+          if (c.type === COMPONENT_TYPES.BACKEND) {
+            return {
+              ...c,
+              name: c.name.includes('Cluster') ? c.name : `${c.name} (Auto-Scaled Cluster)`,
+              tier: 'cluster-ha',
+              instances: 3,
+              description: 'Multi-AZ auto-scaling backend cluster (2-5 instances)'
+            };
+          }
+          return c;
+        });
+        return {
+          ...arch,
+          components: updatedComponents,
+          connections: [...arch.connections]
+        };
+      }
+    });
+  }
+
+  // 8. Manual Policy: IAM Least Privilege (Requirement 7)
+  suggestions.push({
+    id: 'opt_iam_security',
+    title: 'Enforce IAM Least-Privilege & Key Rotation',
+    category: 'Security',
+    problem: 'Broad wildcard permissions on cloud IAM roles expose assets to lateral blast radius.',
+    reason: 'Scoping service accounts to minimum necessary resource ARNs protects against leaked credential misuse.',
+    suggestedSolution: 'Audit IAM policies in AWS IAM / GCP IAM Console to enforce least-privilege scoping.',
+    impact: '🔒 +10 Security score | Manual policy configuration',
+    isManualOnly: true,
+    manualNotice: 'Recommendation only — manual configuration required.'
+  });
+
+  // 9. Manual Policy: Disaster Recovery & Automated Backups (Requirement 7)
+  suggestions.push({
+    id: 'opt_multi_region_backup',
+    title: 'Configure Cross-Region Automated Disaster Recovery',
+    category: 'Reliability',
+    problem: 'Primary database backups are co-located in the primary region, vulnerable to regional cloud incidents.',
+    reason: 'Replicating encrypted daily snapshots to a secondary geographic region guarantees rapid RTO/RPO recovery.',
+    suggestedSolution: 'Enable cross-region snapshot replication in Cloud Console / Terraform storage policy.',
+    impact: '🛡️ +8 Reliability score | Manual cloud configuration',
+    isManualOnly: true,
+    manualNotice: 'Recommendation only — manual configuration required.'
+  });
+
   return suggestions;
+}
+
+/**
+ * Generate Comprehensive Optimization
+ * Aggregates all automated optimizations and returns the fully transformed architecture
+ */
+export function generateComprehensiveOptimization(architecture) {
+  if (!architecture || !Array.isArray(architecture.components) || architecture.components.length === 0) {
+    return {
+      optimizedArchitecture: architecture,
+      appliedActions: [],
+      totalApplied: 0
+    };
+  }
+  const suggestions = getArchitectureOptimizations(architecture);
+  const autoSuggestions = suggestions.filter(s => !s.isManualOnly && typeof s.apply === 'function');
+
+  let current = JSON.parse(JSON.stringify(architecture));
+  const appliedActions = [];
+
+  for (const opt of autoSuggestions) {
+    try {
+      const next = opt.apply(current);
+      if (next && Array.isArray(next.components) && next.components.length > 0) {
+        current = next;
+        appliedActions.push({
+          id: opt.id,
+          title: opt.title,
+          category: opt.category,
+          impact: opt.impact
+        });
+      }
+    } catch (err) {
+      console.warn('Failed to apply optimization step:', opt.id, err);
+    }
+  }
+
+  return {
+    optimizedArchitecture: current,
+    appliedActions,
+    totalApplied: appliedActions.length
+  };
+}
+
+/**
+ * Compute Architecture Diff
+ * Compares before and after architectures and calculates exact structural deltas
+ */
+export function computeArchitectureDiff(beforeArch, afterArch) {
+  const beforeComps = beforeArch?.components || [];
+  const afterComps = afterArch?.components || [];
+  const beforeConns = beforeArch?.connections || [];
+  const afterConns = afterArch?.connections || [];
+
+  const beforeMap = new Map(beforeComps.map(c => [c.id, c]));
+  const afterMap = new Map(afterComps.map(c => [c.id, c]));
+
+  const addedComponents = afterComps.filter(c => !beforeMap.has(c.id));
+  const removedComponents = beforeComps.filter(c => !afterMap.has(c.id));
+  const modifiedComponents = afterComps.filter(c => {
+    if (!beforeMap.has(c.id)) return false;
+    const orig = beforeMap.get(c.id);
+    return orig.name !== c.name || orig.tier !== c.tier || orig.instances !== c.instances;
+  });
+
+  const connectionsChanged = Math.abs(afterConns.length - beforeConns.length) +
+    afterConns.filter(ac => !beforeConns.some(bc => (bc.from === ac.from && bc.to === ac.to) || (bc.from_id === ac.from_id && bc.to_id === ac.to_id))).length;
+
+  return {
+    addedComponents,
+    removedComponents,
+    modifiedComponents,
+    connectionsChanged,
+    beforeCount: beforeComps.length,
+    afterCount: afterComps.length
+  };
 }

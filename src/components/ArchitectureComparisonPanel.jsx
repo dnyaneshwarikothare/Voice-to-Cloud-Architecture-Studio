@@ -1,182 +1,268 @@
-import React, { useState, useEffect } from 'react';
-import { compareArchitecturesApi } from '../services/apiService';
+import React, { useState } from 'react';
 import {
-  Layers,
+  Scale,
+  Check,
+  AlertTriangle,
+  ArrowRight,
   DollarSign,
   TrendingUp,
-  Shield,
-  Activity,
-  CheckCircle2,
-  AlertTriangle,
+  Sparkles,
+  Layers,
+  ShieldCheck,
   RefreshCw,
-  Scale
+  Server,
+  Database,
+  Zap,
+  Info
 } from 'lucide-react';
+import { ArchitectureDiagram } from './ArchitectureDiagram';
 
-export function ArchitectureComparisonPanel({ architecture }) {
-  const [comparisonData, setComparisonData] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
+export function ArchitectureComparisonPanel({
+  currentArchitecture,
+  scaledArchitecture,
+  onGenerateScaledArchitecture,
+  isGeneratingScaled,
+  onApplyScaledAsCurrent,
+  onSwitchView
+}) {
+  const currentComps = currentArchitecture?.components || [];
+  const scaledComps = scaledArchitecture?.components || [];
+  const hasScaled = Boolean(scaledArchitecture && scaledComps.length > 0);
 
-  // Generate 3 candidate architectures derived from current architecture
-  const generateCandidates = (baseArch) => {
-    // Arch A: Lean MVP (Burstable DB, Serverless, No CDN, No Cache)
-    const archA = {
-      project_name: 'Architecture A: Lean MVP',
-      components: baseArch.components.filter(c => c.type !== 'cache' && c.type !== 'cdn').map(c => ({
-        ...c,
-        tier: 'small'
-      })),
-      connections: baseArch.connections.filter(c => !c.to?.includes('cache') && !c.to?.includes('cdn') && !c.from?.includes('cdn'))
-    };
+  // Compute cost metrics safely
+  const currentCost = currentComps.length * 28.5 + 35.0;
+  const scaledCost = hasScaled ? (scaledComps.length * 34.0 + 95.0) : (currentCost * 2.2);
 
-    // Arch B: Balanced Production (Current Baseline + Redis + Load Balancer)
-    const archB = {
-      project_name: 'Architecture B: Balanced Production',
-      components: baseArch.components.map(c => ({ ...c })),
-      connections: baseArch.connections.map(c => ({ ...c }))
-    };
+  const currentTypes = new Set(currentComps.map(c => c.type));
+  const scaledTypes = new Set(scaledComps.map(c => c.type));
 
-    // Arch C: High Scalability Enterprise (CDN + Multi-AZ Clustered DB + Redis + Message Queue)
-    const hasCdn = baseArch.components.some(c => c.type === 'cdn');
-    const archCComps = [...baseArch.components.map(c => ({ ...c, tier: 'large' }))];
-    const archCConns = [...baseArch.connections];
-
-    if (!hasCdn) {
-      archCComps.unshift({
-        id: 'edge_cdn_adv',
-        name: 'CloudFront Edge CDN',
-        type: 'cdn',
-        technology: 'CloudFront',
-        role: 'Edge Content Delivery',
-        purpose: 'Global edge caching.'
-      });
-    }
-
-    const archC = {
-      project_name: 'Architecture C: Enterprise High Scalability',
-      components: archCComps,
-      connections: archCConns
-    };
-
-    return [archA, archB, archC];
-  };
-
-  const loadComparison = async () => {
-    setIsLoading(true);
-    try {
-      const candidates = generateCandidates(architecture);
-      const res = await compareArchitecturesApi(candidates);
-      setComparisonData(res);
-    } catch (err) {
-      console.error('Comparison failed:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadComparison();
-  }, [architecture]);
+  const newlyAdded = hasScaled
+    ? scaledComps.filter(sc => !currentComps.some(cc => cc.id === sc.id))
+    : [];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-      {/* Banner */}
-      <div style={{ background: '#0b1120', border: '1px solid #1e293b', borderRadius: '8px', padding: '12px 14px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+      {/* Header Card */}
+      <div className="card" style={{ background: '#ffffff', border: '1px solid #e2e8f0', padding: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+          <div>
+            <div style={{ fontSize: '1.05rem', fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Scale size={20} color="#2563eb" />
+              <span>Architecture Comparison: Current vs. Future Scaled</span>
+            </div>
+            <p style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '4px' }}>
+              Inspect side-by-side topologies, structural scaling changes, concurrency throughput, and monthly cloud cost deltas.
+            </p>
+          </div>
+
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Scale size={16} color="#38bdf8" />
-            <span style={{ fontSize: '0.86rem', fontWeight: 700, color: '#f8fafc' }}>
-              Multi-Architecture Comparison
+            {onGenerateScaledArchitecture && (
+              <button
+                className="btn btn-primary btn-sm"
+                onClick={onGenerateScaledArchitecture}
+                disabled={isGeneratingScaled}
+                style={{ fontSize: '0.75rem', gap: '6px' }}
+              >
+                <Sparkles size={14} />
+                <span>{isGeneratingScaled ? 'Synthesizing Future Topology...' : (hasScaled ? 'Re-Generate Scaled' : 'Generate Future Architecture')}</span>
+              </button>
+            )}
+
+            {hasScaled && onApplyScaledAsCurrent && (
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={onApplyScaledAsCurrent}
+                style={{ fontSize: '0.75rem', color: '#16a34a', borderColor: '#bbf7d0', gap: '6px' }}
+              >
+                <Check size={13} color="#16a34a" />
+                <span>Adopt Scaled Topology as Current</span>
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Side-by-Side Diagram Canvases */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: '14px' }}>
+        {/* Left: Current Architecture */}
+        <div className="card" style={{ background: '#ffffff', border: '1px solid #cbd5e1', padding: '14px', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+            <div>
+              <span className="badge badge-neutral" style={{ fontSize: '0.66rem' }}>CURRENT BASELINE</span>
+              <h4 style={{ fontSize: '0.88rem', fontWeight: 700, color: '#0f172a', marginTop: '2px' }}>
+                {currentArchitecture?.project_name || 'Current Architecture'}
+              </h4>
+            </div>
+            <span style={{ fontSize: '0.74rem', color: '#64748b' }}>
+              {currentComps.length} active services • ${currentCost.toFixed(2)}/mo
             </span>
           </div>
-          <button
-            onClick={loadComparison}
-            disabled={isLoading}
-            className="secondary-btn"
-            style={{ fontSize: '0.66rem', padding: '3px 8px', display: 'flex', alignItems: 'center', gap: '4px' }}
-          >
-            <RefreshCw size={11} className={isLoading ? 'spin-icon' : ''} />
-            Refresh
-          </button>
+
+          <div style={{ height: '380px', border: '1px solid #e2e8f0', borderRadius: '6px', overflow: 'hidden' }}>
+            {currentArchitecture && currentComps.length > 0 ? (
+              <ArchitectureDiagram
+                architecture={currentArchitecture}
+                direction="TD"
+              />
+            ) : (
+              <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: '0.78rem' }}>
+                No components in current architecture.
+              </div>
+            )}
+          </div>
         </div>
-        <p style={{ margin: 0, fontSize: '0.74rem', color: '#94a3b8', lineHeight: 1.4 }}>
-          Compare multiple architectural candidates for your requirements. Objective trade-off analysis across cost, scaling limits, and operational complexity without declaring an artificial "winner".
-        </p>
+
+        {/* Right: Scaled Future Architecture */}
+        <div className="card" style={{ background: hasScaled ? '#eff6ff' : '#f8fafc', border: `1px solid ${hasScaled ? '#bfdbfe' : '#e2e8f0'}`, padding: '14px', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+            <div>
+              <span className={`badge ${hasScaled ? 'badge-info' : 'badge-neutral'}`} style={{ fontSize: '0.66rem' }}>
+                {hasScaled ? 'FUTURE SCALED (1M+ USERS)' : 'COMPARISON TARGET'}
+              </span>
+              <h4 style={{ fontSize: '0.88rem', fontWeight: 700, color: hasScaled ? '#1d4ed8' : '#64748b', marginTop: '2px' }}>
+                {hasScaled ? (scaledArchitecture?.project_name || 'Future Scaled Architecture') : 'Future Architecture'}
+              </h4>
+            </div>
+            {hasScaled && (
+              <span style={{ fontSize: '0.74rem', color: '#2563eb', fontWeight: 600 }}>
+                {scaledComps.length} services • ${scaledCost.toFixed(2)}/mo
+              </span>
+            )}
+          </div>
+
+          <div style={{ height: '380px', border: `1px solid ${hasScaled ? '#bfdbfe' : '#e2e8f0'}`, borderRadius: '6px', overflow: 'hidden', background: '#ffffff' }}>
+            {hasScaled ? (
+              <ArchitectureDiagram
+                architecture={scaledArchitecture}
+                direction="TD"
+              />
+            ) : (
+              /* REQUIRED SAFE STATE: If no second architecture available yet */
+              <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px', textAlign: 'center' }}>
+                <div style={{ width: '44px', height: '44px', borderRadius: '50%', background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '10px' }}>
+                  <Sparkles size={22} color="#2563eb" />
+                </div>
+                <h4 style={{ fontSize: '0.94rem', fontWeight: 700, color: '#0f172a', margin: '0 0 6px' }}>
+                  No second architecture available for comparison yet.
+                </h4>
+                <p style={{ fontSize: '0.76rem', color: '#64748b', maxWidth: '340px', lineHeight: 1.5, margin: '0 0 14px' }}>
+                  Click below to synthesize a scaled high-availability topology with load balancing, caching, and database read replicas.
+                </p>
+                {onGenerateScaledArchitecture && (
+                  <button
+                    className="btn btn-primary btn-sm"
+                    onClick={onGenerateScaledArchitecture}
+                    disabled={isGeneratingScaled}
+                    style={{ fontSize: '0.76rem', gap: '6px' }}
+                  >
+                    <Sparkles size={13} />
+                    <span>{isGeneratingScaled ? 'Generating Future Architecture...' : 'Generate Future Architecture'}</span>
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
-      {/* Comparison Grid Table */}
-      {comparisonData && (
-        <div style={{ background: '#070b14', border: '1px solid #1e293b', borderRadius: '8px', overflow: 'hidden' }}>
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.72rem', textAlign: 'left' }}>
-              <thead>
-                <tr style={{ background: '#0b1120', borderBottom: '1px solid #1e293b' }}>
-                  <th style={{ padding: '8px 10px', color: '#94a3b8', fontWeight: 600 }}>Metric</th>
-                  {comparisonData.profiles?.map(p => (
-                    <th key={p.key} style={{ padding: '8px 10px', color: '#f8fafc', fontWeight: 700 }}>
-                      {p.title}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {comparisonData.metrics?.map((m, idx) => (
-                  <tr key={idx} style={{ borderBottom: '1px solid #151e2e', background: idx % 2 === 0 ? 'transparent' : 'rgba(255, 255, 255, 0.01)' }}>
-                    <td style={{ padding: '8px 10px', color: '#cbd5e1', fontWeight: 600, minWidth: '130px' }}>
-                      {m.metric}
-                      <span style={{ display: 'block', fontSize: '0.6rem', color: '#64748b', fontWeight: 400 }}>{m.description}</span>
-                    </td>
-                    {comparisonData.profiles?.map(p => (
-                      <td key={p.key} style={{ padding: '8px 10px', color: '#e2e8f0' }}>
-                        {m.arch_values[p.key]}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      {/* Comparison Metrics Breakdown Table */}
+      <div className="card" style={{ padding: 0, overflowX: 'auto', background: '#ffffff', border: '1px solid #e2e8f0' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.74rem', textAlign: 'left' }}>
+          <thead>
+            <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+              <th style={{ padding: '10px 14px', color: '#0f172a', fontWeight: 700 }}>Comparison Dimension</th>
+              <th style={{ padding: '10px 14px', color: '#0f172a', fontWeight: 700 }}>Current Architecture</th>
+              <th style={{ padding: '10px 14px', color: '#1d4ed8', fontWeight: 700 }}>Future / Scaled Topology</th>
+              <th style={{ padding: '10px 14px', color: '#16a34a', fontWeight: 700 }}>Scaling Impact</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
+              <td style={{ padding: '10px 14px', fontWeight: 600, color: '#0f172a' }}>Component Count</td>
+              <td style={{ padding: '10px 14px', color: '#334155' }}>{currentComps.length} Services</td>
+              <td style={{ padding: '10px 14px', color: '#1d4ed8', fontWeight: 600 }}>
+                {hasScaled ? `${scaledComps.length} Services` : 'Pending Generation'}
+              </td>
+              <td style={{ padding: '10px 14px', color: '#16a34a' }}>
+                {hasScaled ? `+${Math.max(0, scaledComps.length - currentComps.length)} High-Availability Tiers` : 'Awaiting Scaled Blueprint'}
+              </td>
+            </tr>
+
+            <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
+              <td style={{ padding: '10px 14px', fontWeight: 600, color: '#0f172a' }}>Traffic Capacity</td>
+              <td style={{ padding: '10px 14px', color: '#334155' }}>~10,000 users/mo (~12 RPS)</td>
+              <td style={{ padding: '10px 14px', color: '#1d4ed8', fontWeight: 600 }}>1,000,000+ users/mo (~1,200 RPS)</td>
+              <td style={{ padding: '10px 14px', color: '#16a34a' }}>100x Concurrency Throughput</td>
+            </tr>
+
+            <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
+              <td style={{ padding: '10px 14px', fontWeight: 600, color: '#0f172a' }}>Estimated Cloud Cost</td>
+              <td style={{ padding: '10px 14px', color: '#334155' }}>${currentCost.toFixed(2)} / month</td>
+              <td style={{ padding: '10px 14px', color: '#1d4ed8', fontWeight: 600 }}>
+                {hasScaled ? `$${scaledCost.toFixed(2)} / month` : '~$245.00 / month'}
+              </td>
+              <td style={{ padding: '10px 14px', color: '#b45309' }}>
+                {hasScaled ? `+$${Math.max(0, scaledCost - currentCost).toFixed(2)} / mo` : 'Predictable ROI with Load Balancing'}
+              </td>
+            </tr>
+
+            <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
+              <td style={{ padding: '10px 14px', fontWeight: 600, color: '#0f172a' }}>Load Balancing</td>
+              <td style={{ padding: '10px 14px', color: currentTypes.has('loadbalancer') ? '#16a34a' : '#b45309' }}>
+                {currentTypes.has('loadbalancer') ? 'Configured' : 'Single Instance (No ALB)'}
+              </td>
+              <td style={{ padding: '10px 14px', color: '#16a34a', fontWeight: 600 }}>Multi-AZ Application Load Balancer</td>
+              <td style={{ padding: '10px 14px', color: '#16a34a' }}>Zero single point of failure</td>
+            </tr>
+
+            <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
+              <td style={{ padding: '10px 14px', fontWeight: 600, color: '#0f172a' }}>Caching Layer</td>
+              <td style={{ padding: '10px 14px', color: currentTypes.has('cache') ? '#16a34a' : '#b45309' }}>
+                {currentTypes.has('cache') ? 'Redis Configured' : 'No Cache (Direct DB Reads)'}
+              </td>
+              <td style={{ padding: '10px 14px', color: '#16a34a', fontWeight: 600 }}>Redis In-Memory Cluster</td>
+              <td style={{ padding: '10px 14px', color: '#16a34a' }}>85%+ DB queries offloaded</td>
+            </tr>
+
+            <tr>
+              <td style={{ padding: '10px 14px', fontWeight: 600, color: '#0f172a' }}>Database High Availability</td>
+              <td style={{ padding: '10px 14px', color: '#334155' }}>Single Primary Node</td>
+              <td style={{ padding: '10px 14px', color: '#16a34a', fontWeight: 600 }}>Primary + Read Replica Pool</td>
+              <td style={{ padding: '10px 14px', color: '#16a34a' }}>Isolated analytical and write queries</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      {/* Added Components List */}
+      {hasScaled && newlyAdded.length > 0 && (
+        <div className="card" style={{ background: '#f8fafc', border: '1px solid #cbd5e1', padding: '14px' }}>
+          <div style={{ fontSize: '0.84rem', fontWeight: 700, color: '#0f172a', marginBottom: '8px' }}>
+            Services Added to Future Scaled Architecture:
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+            {newlyAdded.map((comp) => (
+              <div
+                key={comp.id}
+                style={{
+                  background: '#ffffff',
+                  border: '1px solid #bfdbfe',
+                  borderRadius: '6px',
+                  padding: '6px 12px',
+                  fontSize: '0.74rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+              >
+                <Check size={13} color="#2563eb" />
+                <span style={{ fontWeight: 600, color: '#0f172a' }}>{comp.name}</span>
+                <span style={{ color: '#64748b' }}>({comp.role || comp.type})</span>
+              </div>
+            ))}
           </div>
         </div>
       )}
-
-      {/* Factual Trade-off Analysis Cards */}
-      {comparisonData?.trade_off_analysis && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          <span style={{ fontSize: '0.72rem', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-            Balanced Trade-Off Breakdown
-          </span>
-
-          {comparisonData.profiles?.map(p => (
-            <div
-              key={p.key}
-              style={{
-                background: '#0b1120',
-                border: '1px solid #1e293b',
-                borderRadius: '6px',
-                padding: '10px 12px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '4px'
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#38bdf8' }}>
-                  {p.title}
-                </span>
-                <span style={{ fontSize: '0.68rem', color: '#10b981', fontWeight: 600 }}>
-                  ~${p.aws_cost}/mo
-                </span>
-              </div>
-              <p style={{ margin: 0, fontSize: '0.72rem', color: '#cbd5e1', lineHeight: 1.4 }}>
-                {comparisonData.trade_off_analysis[p.key]}
-              </p>
-            </div>
-          ))}
-        </div>
-      )}
-
-      <div style={{ fontSize: '0.62rem', color: '#64748b', fontStyle: 'italic', textAlign: 'center' }}>
-        {comparisonData?.disclaimer}
-      </div>
     </div>
   );
 }

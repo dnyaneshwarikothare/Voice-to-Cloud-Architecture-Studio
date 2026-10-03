@@ -1,12 +1,12 @@
 /**
  * Mermaid Diagram Generator and Renderer Service
+ * Professional Developer / Cloud Architecture Light Theme
  */
 
 import mermaid from 'mermaid';
 import { COMPONENT_TYPE_CONFIG, sanitizeId } from '../utils/architectureSchema.js';
 import { getCloudServiceForComponent } from '../utils/cloudMappings.js';
 
-// Initialize Mermaid once with high-contrast developer dark theme
 let mermaidInitialized = false;
 
 export function initializeMermaid() {
@@ -15,32 +15,32 @@ export function initializeMermaid() {
     startOnLoad: false,
     theme: 'base',
     securityLevel: 'loose',
-    fontFamily: 'Inter, system-ui, sans-serif',
+    fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
     themeVariables: {
-      darkMode: true,
-      background: '#0d131f',
-      primaryColor: '#1e293b',
-      primaryTextColor: '#f8fafc',
-      primaryBorderColor: '#38bdf8',
-      lineColor: '#60a5fa',
-      secondaryColor: '#0f172a',
-      tertiaryColor: '#1e1e38',
-      mainBkg: '#0f172a',
-      nodeBorder: '#3b82f6',
-      clusterBkg: '#111827',
-      clusterBorder: '#374151',
-      titleColor: '#f1f5f9',
-      edgeLabelBackground: '#0b0f19',
-      actorBorder: '#6366f1',
-      actorBkg: '#1e293b',
-      actorTextColor: '#f8fafc'
+      darkMode: false,
+      background: '#ffffff',
+      primaryColor: '#ffffff',
+      primaryTextColor: '#0f172a',
+      primaryBorderColor: '#2563eb',
+      lineColor: '#64748b',
+      secondaryColor: '#f8fafc',
+      tertiaryColor: '#f1f5f9',
+      mainBkg: '#ffffff',
+      nodeBorder: '#2563eb',
+      clusterBkg: '#f8fafc',
+      clusterBorder: '#cbd5e1',
+      titleColor: '#0f172a',
+      edgeLabelBackground: '#ffffff',
+      actorBorder: '#2563eb',
+      actorBkg: '#ffffff',
+      actorTextColor: '#0f172a'
     },
     flowchart: {
       htmlLabels: true,
       curve: 'basis',
-      padding: 18,
-      nodeSpacing: 45,
-      rankSpacing: 60
+      padding: 16,
+      nodeSpacing: 48,
+      rankSpacing: 64
     }
   });
   mermaidInitialized = true;
@@ -70,17 +70,17 @@ function formatNode(comp, mode = 'logical', failureState = null) {
   const isCascaded = failureState?.cascadedIds?.includes(comp.id);
 
   if (isFailed) {
-    displayTitle = `❌ [FAILED] ${displayTitle}`;
-    subtitle = `OUTAGE - ${subtitle}`;
+    displayTitle = `[OUTAGE] ${displayTitle}`;
+    subtitle = `OFFLINE - ${subtitle}`;
   } else if (isCascaded) {
-    displayTitle = `⚠️ [IMPACTED] ${displayTitle}`;
-    subtitle = `DEGRADED - ${subtitle}`;
+    displayTitle = `[DEGRADED] ${displayTitle}`;
+    subtitle = `IMPACTED - ${subtitle}`;
   }
 
   // Clean strings to prevent syntax breaking in Mermaid
   const safeTitle = displayTitle.replace(/["\n\r#;]/g, ' ').trim();
   const safeSubtitle = subtitle.replace(/["\n\r#;]/g, ' ').trim();
-  const innerHtml = `<b>${safeTitle}</b><br/><small style='color:#94a3b8;'>${safeSubtitle}</small>`;
+  const innerHtml = `<b>${safeTitle}</b><br/><small style='color:#475569;'>${safeSubtitle}</small>`;
 
   switch (config.shape) {
     case 'cylinder':
@@ -105,7 +105,8 @@ export function generateMermaidCode(architecture, options = {}) {
   const {
     direction = 'LR', // 'LR' or 'TD'
     mode = 'logical', // 'logical', 'aws', 'gcp'
-    failureState = null
+    failureState = null,
+    level = 'c4-container' // 'high-level', 'c4-context', 'c4-container', 'c4-component'
   } = options;
 
   if (!architecture || !Array.isArray(architecture.components) || architecture.components.length === 0) {
@@ -114,10 +115,30 @@ export function generateMermaidCode(architecture, options = {}) {
 
   const lines = [`flowchart ${direction}`];
 
-  // Render components
-  architecture.components.forEach((comp) => {
-    lines.push(`  ${formatNode(comp, mode, failureState)}`);
-  });
+  // If C4 Context View: wrap within System Context boundary with User actor
+  if (level === 'c4-context') {
+    lines.push('  subgraph Context["System Context Boundary"]');
+    lines.push('    direction LR');
+    architecture.components.forEach((comp) => {
+      lines.push(`    ${formatNode(comp, mode, failureState)}`);
+    });
+    lines.push('  end');
+    lines.push('  user_actor(["👤 Active Users / Clients"]) --> Context');
+  } else if (level === 'high-level') {
+    // Filter to core tiers for high-level summary
+    const coreComps = architecture.components.filter(c =>
+      ['frontend', 'gateway', 'loadbalancer', 'backend', 'database', 'cdn'].includes(c.type)
+    );
+    const compsToRender = coreComps.length >= 2 ? coreComps : architecture.components;
+    compsToRender.forEach((comp) => {
+      lines.push(`  ${formatNode(comp, mode, failureState)}`);
+    });
+  } else {
+    // Standard Container / Component level view
+    architecture.components.forEach((comp) => {
+      lines.push(`  ${formatNode(comp, mode, failureState)}`);
+    });
+  }
 
   lines.push('');
 
@@ -136,7 +157,7 @@ export function generateMermaidCode(architecture, options = {}) {
     });
   }
 
-  // Apply component styling classes
+  // Apply professional light theme component styling classes
   lines.push('');
   architecture.components.forEach((comp) => {
     const safeId = sanitizeId(comp.id);
@@ -144,13 +165,13 @@ export function generateMermaidCode(architecture, options = {}) {
     const isCascaded = failureState?.cascadedIds?.includes(comp.id);
 
     if (isFailed) {
-      lines.push(`  style ${safeId} fill:#450a0a,stroke:#f43f5e,stroke-width:3px,stroke-dasharray: 5 5,color:#fda4af`);
+      lines.push(`  style ${safeId} fill:#fef2f2,stroke:#ef4444,stroke-width:2px,stroke-dasharray: 4 4,color:#991b1b`);
     } else if (isCascaded) {
-      lines.push(`  style ${safeId} fill:#451a03,stroke:#f59e0b,stroke-width:2px,color:#fed7aa`);
+      lines.push(`  style ${safeId} fill:#fffbeb,stroke:#f59e0b,stroke-width:2px,color:#92400e`);
     } else {
       const config = COMPONENT_TYPE_CONFIG[comp.type] || COMPONENT_TYPE_CONFIG.custom;
-      const strokeColor = config.color || '#38bdf8';
-      lines.push(`  style ${safeId} fill:#111827,stroke:${strokeColor},stroke-width:2px,color:#f8fafc`);
+      const strokeColor = config.color || '#2563eb';
+      lines.push(`  style ${safeId} fill:#ffffff,stroke:${strokeColor},stroke-width:2px,color:#0f172a`);
     }
   });
 
@@ -168,7 +189,6 @@ export async function renderMermaidSvg(containerId, code) {
     return { success: true, svg };
   } catch (error) {
     console.error('Mermaid render error:', error);
-    // Cleanup any orphaned Mermaid error containers in DOM
     if (typeof document !== 'undefined') {
       const errEl = document.getElementById(`d${renderId}`);
       if (errEl) errEl.remove();
@@ -176,13 +196,13 @@ export async function renderMermaidSvg(containerId, code) {
     }
     return {
       success: false,
-      error: error.message || 'Failed to render Mermaid diagram'
+      error: 'Unable to render this architecture diagram. Please check the architecture connections.'
     };
   }
 }
 
 /**
- * Export SVG string as a PNG data URL
+ * Export SVG string as a PNG data URL with crisp white background
  */
 export function svgToPngDataUrl(svgString, scale = 2) {
   return new Promise((resolve, reject) => {
@@ -191,10 +211,9 @@ export function svgToPngDataUrl(svgString, scale = 2) {
       const svgDoc = parser.parseFromString(svgString, 'image/svg+xml');
       const svgEl = svgDoc.documentElement;
 
-      let width = parseFloat(svgEl.getAttribute('width')) || 800;
-      let height = parseFloat(svgEl.getAttribute('height')) || 600;
+      let width = parseFloat(svgEl.getAttribute('width')) || 900;
+      let height = parseFloat(svgEl.getAttribute('height')) || 650;
 
-      // Handle viewBox if width/height missing
       const viewBox = svgEl.getAttribute('viewBox');
       if (viewBox) {
         const parts = viewBox.split(/\s+|,/).map(parseFloat);
@@ -209,8 +228,8 @@ export function svgToPngDataUrl(svgString, scale = 2) {
       canvas.height = height * scale;
       const ctx = canvas.getContext('2d');
 
-      // Draw dark background
-      ctx.fillStyle = '#0b0f19';
+      // Draw crisp clean white background for professional export
+      ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
       const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });

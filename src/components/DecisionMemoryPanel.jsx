@@ -9,13 +9,14 @@ import {
   CheckCircle2,
   Clock,
   Layers,
-  FileText
+  FileText,
+  Save,
+  X
 } from 'lucide-react';
 
 export function DecisionMemoryPanel({ architecture }) {
   const [decisions, setDecisions] = useState([]);
   const [isAdding, setIsAdding] = useState(false);
-  const [editingId, setEditingId] = useState(null);
 
   // New Decision Form State
   const [formData, setFormData] = useState({
@@ -32,9 +33,8 @@ export function DecisionMemoryPanel({ architecture }) {
   const loadDecisions = async () => {
     try {
       const data = await getDecisionsApi();
-      // Check if linked components still exist or have changed in active architecture
       const comps = architecture?.components || [];
-      const updated = data.map(d => {
+      const updated = (data || []).map(d => {
         if (!d.component_id) return d;
         const exists = comps.some(c => d.component_id.includes(c.id) || c.id.includes(d.component_id) || d.component_id.includes(c.type));
         return {
@@ -65,7 +65,6 @@ export function DecisionMemoryPanel({ architecture }) {
 
     await addDecisionApi(newDec);
     setIsAdding(false);
-    setEditingId(null);
     setFormData({
       id: '',
       component_id: '',
@@ -84,149 +83,134 @@ export function DecisionMemoryPanel({ architecture }) {
     loadDecisions();
   };
 
-  const handleStartEdit = (d) => {
-    setFormData(d);
-    setEditingId(d.id);
-    setIsAdding(true);
-  };
+  const components = architecture?.components || [];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-      {/* Banner */}
-      <div style={{ background: '#0b1120', border: '1px solid #1e293b', borderRadius: '8px', padding: '12px 14px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Bookmark size={16} color="#38bdf8" />
-            <span style={{ fontSize: '0.86rem', fontWeight: 700, color: '#f8fafc' }}>
-              Architecture Decision Memory (ADR)
-            </span>
+      {/* Header Card */}
+      <div className="card" style={{ background: '#ffffff', border: '1px solid #e2e8f0', padding: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+          <div>
+            <div style={{ fontSize: '1.05rem', fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Bookmark size={20} color="#0284c7" />
+              <span>Architecture Decision Records (ADRs)</span>
+            </div>
+            <p style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '4px' }}>
+              Chronological log of structural choices, trade-offs, and technology evaluations for auditability.
+            </p>
           </div>
+
           <button
-            onClick={() => {
-              setFormData({
-                id: '',
-                component_id: architecture?.components?.[0]?.id || '',
-                component_name: architecture?.components?.[0]?.name || '',
-                decision: '',
-                reason: '',
-                alternative: '',
-                trade_off: '',
-                version: 'v1.0'
-              });
-              setIsAdding(!isAdding);
-            }}
-            className="primary-btn"
-            style={{ fontSize: '0.68rem', padding: '4px 10px', display: 'flex', alignItems: 'center', gap: '4px' }}
+            className="btn btn-primary btn-sm"
+            onClick={() => setIsAdding(!isAdding)}
+            style={{ fontSize: '0.75rem', gap: '6px' }}
           >
-            <Plus size={12} />
-            {isAdding ? 'Cancel' : 'Record Decision'}
+            {isAdding ? <X size={13} /> : <Plus size={13} />}
+            <span>{isAdding ? 'Cancel' : 'Log New ADR'}</span>
           </button>
         </div>
-        <p style={{ margin: 0, fontSize: '0.74rem', color: '#94a3b8', lineHeight: 1.4 }}>
-          Preserve architectural reasoning, alternatives rejected, and explicit trade-offs. The system alerts you if an underlying component decision is replaced or invalidated.
-        </p>
       </div>
 
-      {/* Add / Edit Form Modal/Drawer */}
+      {/* Add Decision Form */}
       {isAdding && (
-        <form onSubmit={handleSaveDecision} style={{ background: '#070b14', border: '1px solid #38bdf8', borderRadius: '8px', padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          <span style={{ fontSize: '0.76rem', fontWeight: 700, color: '#38bdf8' }}>
-            {editingId ? 'Edit Decision Record' : 'Record New Architecture Decision'}
-          </span>
+        <form onSubmit={handleSaveDecision} className="card" style={{ background: '#ffffff', border: '1px solid #bfdbfe', padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <h4 style={{ fontSize: '0.9rem', fontWeight: 700, color: '#1e3a8a', margin: 0 }}>
+            Record Architectural Decision
+          </h4>
 
-          <div>
-            <label style={{ fontSize: '0.68rem', color: '#94a3b8', display: 'block', marginBottom: '2px' }}>
-              Architectural Decision
-            </label>
-            <input
-              type="text"
-              required
-              placeholder="e.g., Adopt PostgreSQL as Primary Relational Store"
-              value={formData.decision}
-              onChange={(e) => setFormData({ ...formData, decision: e.target.value })}
-              style={{ width: '100%', fontSize: '0.74rem', padding: '5px 8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '4px', color: '#f8fafc' }}
-            />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+            <div>
+              <label style={{ fontSize: '0.72rem', fontWeight: 600, color: '#475569', display: 'block', marginBottom: '3px' }}>
+                Architectural Decision
+              </label>
+              <input
+                type="text"
+                className="input"
+                placeholder="e.g. Adopt Redis for Session Caching"
+                value={formData.decision}
+                onChange={e => setFormData({ ...formData, decision: e.target.value })}
+                required
+                style={{ width: '100%', fontSize: '0.78rem', padding: '6px 10px' }}
+              />
+            </div>
+
+            <div>
+              <label style={{ fontSize: '0.72rem', fontWeight: 600, color: '#475569', display: 'block', marginBottom: '3px' }}>
+                Related Component
+              </label>
+              <select
+                className="input"
+                value={formData.component_id}
+                onChange={e => {
+                  const comp = components.find(c => c.id === e.target.value);
+                  setFormData({
+                    ...formData,
+                    component_id: e.target.value,
+                    component_name: comp?.name || ''
+                  });
+                }}
+                style={{ width: '100%', fontSize: '0.78rem', padding: '6px 10px' }}
+              >
+                <option value="">(Global System-wide)</option>
+                {components.map(c => (
+                  <option key={c.id} value={c.id}>{c.name} ({c.type})</option>
+                ))}
+              </select>
+            </div>
           </div>
 
           <div>
-            <label style={{ fontSize: '0.68rem', color: '#94a3b8', display: 'block', marginBottom: '2px' }}>
-              Linked Component
-            </label>
-            <select
-              value={formData.component_id}
-              onChange={(e) => {
-                const comp = architecture?.components?.find(c => c.id === e.target.value);
-                setFormData({
-                  ...formData,
-                  component_id: e.target.value,
-                  component_name: comp?.name || e.target.value
-                });
-              }}
-              style={{ width: '100%', fontSize: '0.74rem', padding: '5px 8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '4px', color: '#f8fafc' }}
-            >
-              <option value="">General Architecture</option>
-              {architecture?.components?.map(c => (
-                <option key={c.id} value={c.id}>{c.name} ({c.role || c.type})</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label style={{ fontSize: '0.68rem', color: '#94a3b8', display: 'block', marginBottom: '2px' }}>
-              Why / Rationale
+            <label style={{ fontSize: '0.72rem', fontWeight: 600, color: '#475569', display: 'block', marginBottom: '3px' }}>
+              Engineering Justification / Reason
             </label>
             <textarea
-              required
+              className="input"
               rows={2}
-              placeholder="e.g., Requires ACID transaction semantics and strict relational integrity."
+              placeholder="Why was this architecture choice made? What problem does it solve?"
               value={formData.reason}
-              onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
-              style={{ width: '100%', fontSize: '0.74rem', padding: '5px 8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '4px', color: '#f8fafc', resize: 'vertical' }}
+              onChange={e => setFormData({ ...formData, reason: e.target.value })}
+              required
+              style={{ width: '100%', fontSize: '0.78rem', padding: '6px 10px' }}
             />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
             <div>
-              <label style={{ fontSize: '0.68rem', color: '#94a3b8', display: 'block', marginBottom: '2px' }}>
+              <label style={{ fontSize: '0.72rem', fontWeight: 600, color: '#475569', display: 'block', marginBottom: '3px' }}>
                 Alternative Considered
               </label>
               <input
                 type="text"
-                placeholder="e.g., MongoDB Document Store"
+                className="input"
+                placeholder="e.g. In-memory Memcached"
                 value={formData.alternative}
-                onChange={(e) => setFormData({ ...formData, alternative: e.target.value })}
-                style={{ width: '100%', fontSize: '0.74rem', padding: '5px 8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '4px', color: '#f8fafc' }}
+                onChange={e => setFormData({ ...formData, alternative: e.target.value })}
+                style={{ width: '100%', fontSize: '0.78rem', padding: '6px 10px' }}
               />
             </div>
+
             <div>
-              <label style={{ fontSize: '0.68rem', color: '#94a3b8', display: 'block', marginBottom: '2px' }}>
-                Trade-Off
+              <label style={{ fontSize: '0.72rem', fontWeight: 600, color: '#475569', display: 'block', marginBottom: '3px' }}>
+                Trade-off Accepted
               </label>
               <input
                 type="text"
-                placeholder="e.g., Strict schema vs flexible documents"
+                className="input"
+                placeholder="e.g. Higher monthly memory cost for persistence"
                 value={formData.trade_off}
-                onChange={(e) => setFormData({ ...formData, trade_off: e.target.value })}
-                style={{ width: '100%', fontSize: '0.74rem', padding: '5px 8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '4px', color: '#f8fafc' }}
+                onChange={e => setFormData({ ...formData, trade_off: e.target.value })}
+                style={{ width: '100%', fontSize: '0.78rem', padding: '6px 10px' }}
               />
             </div>
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '6px', marginTop: '4px' }}>
-            <button
-              type="button"
-              onClick={() => setIsAdding(false)}
-              className="secondary-btn"
-              style={{ fontSize: '0.68rem', padding: '4px 10px' }}
-            >
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '6px', marginTop: '6px' }}>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => setIsAdding(false)} style={{ fontSize: '0.74rem' }}>
               Cancel
             </button>
-            <button
-              type="submit"
-              className="primary-btn"
-              style={{ fontSize: '0.68rem', padding: '4px 12px' }}
-            >
-              Save Decision
+            <button type="submit" className="btn btn-primary btn-sm" style={{ fontSize: '0.74rem' }}>
+              <Save size={13} />
+              <span>Save ADR</span>
             </button>
           </div>
         </form>
@@ -234,79 +218,52 @@ export function DecisionMemoryPanel({ architecture }) {
 
       {/* Decisions List */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-        {decisions.map((d) => {
-          const isChanged = d.status === 'changed';
-          return (
+        {decisions.length === 0 ? (
+          <div className="card" style={{ background: '#ffffff', border: '1px solid #e2e8f0', padding: '24px', textAlign: 'center', color: '#64748b', fontSize: '0.78rem' }}>
+            No Architectural Decision Records logged yet. Click "Log New ADR" above to record system choices.
+          </div>
+        ) : (
+          decisions.map(d => (
             <div
               key={d.id}
+              className="card"
               style={{
-                background: '#0b1120',
-                border: isChanged ? '1px solid rgba(245, 158, 11, 0.4)' : '1px solid #1e293b',
-                borderLeft: isChanged ? '4px solid #f59e0b' : '4px solid #10b981',
-                borderRadius: '6px',
-                padding: '12px',
+                background: '#ffffff',
+                border: '1px solid #e2e8f0',
+                padding: '14px',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: '6px'
+                gap: '8px'
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#f8fafc' }}>
-                    {d.decision}
+                  <span className="badge badge-info" style={{ fontSize: '0.66rem' }}>
+                    {d.version || 'v1.0'}
                   </span>
-                  {isChanged ? (
-                    <span style={{ background: 'rgba(245, 158, 11, 0.2)', color: '#fde68a', fontSize: '0.6rem', fontWeight: 700, padding: '2px 6px', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <AlertTriangle size={11} color="#f59e0b" />
-                      THIS DECISION HAS CHANGED
-                    </span>
-                  ) : (
-                    <span style={{ background: 'rgba(16, 185, 129, 0.2)', color: '#86efac', fontSize: '0.6rem', fontWeight: 700, padding: '2px 6px', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <CheckCircle2 size={11} color="#10b981" />
-                      ACTIVE
-                    </span>
-                  )}
+                  <strong style={{ fontSize: '0.88rem', color: '#0f172a' }}>{d.decision}</strong>
                 </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <button
-                    onClick={() => handleStartEdit(d)}
-                    style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '3px' }}
-                  >
-                    <Edit3 size={13} />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(d.id)}
-                    style={{ background: 'transparent', border: 'none', color: '#f43f5e', cursor: 'pointer', padding: '3px' }}
-                  >
-                    <Trash2 size={13} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span className="badge badge-success" style={{ fontSize: '0.64rem' }}>Active</span>
+                  <button className="icon-btn" onClick={() => handleDelete(d.id)} title="Delete record">
+                    <Trash2 size={13} color="#ef4444" />
                   </button>
                 </div>
               </div>
 
-              {isChanged && (
-                <div style={{ background: 'rgba(245, 158, 11, 0.1)', padding: '6px 8px', borderRadius: '4px', fontSize: '0.68rem', color: '#fde68a' }}>
-                  ⚠️ The component linked to this decision ({d.component_name || d.component_id}) was modified, replaced, or removed from the active canvas.
+              <div style={{ fontSize: '0.76rem', color: '#334155' }}>
+                <strong>Justification:</strong> {d.reason}
+              </div>
+
+              {(d.alternative || d.trade_off) && (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', background: '#f8fafc', padding: '8px', borderRadius: '6px', fontSize: '0.72rem' }}>
+                  {d.alternative && <div><span style={{ color: '#64748b' }}>Alternative:</span> <strong style={{ color: '#0f172a' }}>{d.alternative}</strong></div>}
+                  {d.trade_off && <div><span style={{ color: '#64748b' }}>Trade-off:</span> <strong style={{ color: '#0f172a' }}>{d.trade_off}</strong></div>}
                 </div>
               )}
-
-              <div style={{ fontSize: '0.72rem', color: '#cbd5e1' }}>
-                <b>Reason:</b> {d.reason}
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '0.68rem', color: '#94a3b8', background: '#070b14', padding: '6px 8px', borderRadius: '4px' }}>
-                <div>
-                  <span style={{ color: '#64748b', display: 'block' }}>Alternative Considered:</span>
-                  <span style={{ color: '#cbd5e1' }}>{d.alternative || 'None recorded'}</span>
-                </div>
-                <div>
-                  <span style={{ color: '#64748b', display: 'block' }}>Trade-Off Accepted:</span>
-                  <span style={{ color: '#cbd5e1' }}>{d.trade_off || 'None recorded'}</span>
-                </div>
-              </div>
             </div>
-          );
-        })}
+          ))
+        )}
       </div>
     </div>
   );

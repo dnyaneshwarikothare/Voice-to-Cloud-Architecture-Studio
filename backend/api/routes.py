@@ -54,7 +54,13 @@ try:
         execute_conversational_command,
         list_decisions,
         add_decision,
-        delete_decision
+        delete_decision,
+        ai_provider_manager,
+        usage_manager,
+        response_cache,
+        generate_scaled_architecture,
+        explain_architecture_narrative,
+        compare_technologies
     )
 except (ImportError, ValueError):
     try:
@@ -103,7 +109,13 @@ except (ImportError, ValueError):
             execute_conversational_command,
             list_decisions,
             add_decision,
-            delete_decision
+            delete_decision,
+            ai_provider_manager,
+            usage_manager,
+            response_cache,
+            generate_scaled_architecture,
+            explain_architecture_narrative,
+            compare_technologies
         )
     except (ImportError, ValueError):
         from models.architecture import (  # type: ignore
@@ -151,7 +163,13 @@ except (ImportError, ValueError):
             execute_conversational_command,
             list_decisions,
             add_decision,
-            delete_decision
+            delete_decision,
+            ai_provider_manager,
+            usage_manager,
+            response_cache,
+            generate_scaled_architecture,
+            explain_architecture_narrative,
+            compare_technologies
         )
 
 router = APIRouter(prefix="/api", tags=["Architecture Studio"])
@@ -181,6 +199,15 @@ class CloudMapRequest(BaseModel):
     provider: str = "aws"
 
 
+class ScaledArchitectureRequest(BaseModel):
+    architecture: ArchitectureModel
+    target_users: Optional[int] = 1000000
+
+
+class TechComparisonRequest(BaseModel):
+    technologies: List[str]
+
+
 # 0. API Health Check Endpoint
 @router.get("/health")
 def api_health():
@@ -195,15 +222,59 @@ def api_analyze_requirements(req: AnalyzeRequirementsRequest):
     return analyze_requirements(req.text, req.answers)
 
 
-# 2. Architecture Generator
+# 2. Architecture Generator with Multi-Provider Fallback and Response Caching
 @router.post("/generate-architecture", response_model=ArchitectureModel)
-def api_generate_architecture(req: GenerateArchitectureRequest):
-    return generate_architecture_from_requirements(
-        prompt=req.prompt,
-        application_type=req.application_type,
-        answers=req.answers or {},
-        cloud_provider=req.cloud_provider or "logical"
-    )
+async def api_generate_architecture(req: GenerateArchitectureRequest):
+    try:
+        arch_data = await ai_provider_manager.generate_architecture(
+            prompt=req.prompt,
+            application_type=req.application_type,
+            answers=req.answers or {},
+            cloud_provider=req.cloud_provider or "logical",
+            force_refresh=bool(req.force_refresh)
+        )
+        return ArchitectureModel.model_validate(arch_data)
+    except Exception as e:
+        fallback_arch = generate_architecture_from_requirements(
+            prompt=req.prompt,
+            application_type=req.application_type,
+            answers=req.answers or {},
+            cloud_provider=req.cloud_provider or "logical"
+        )
+        fallback_arch.provider_used = "rule_based_engine"
+        fallback_arch.provider_notice = "Architecture generation is temporarily using the local rule engine."
+        return fallback_arch
+
+
+# 2b. Scaled Future Architecture Generator (Feature 10)
+@router.post("/generate-scaled-architecture", response_model=ArchitectureModel)
+def api_generate_scaled_architecture(req: ScaledArchitectureRequest):
+    return generate_scaled_architecture(req.architecture, req.target_users or 1000000)
+
+
+# 2c. Explain Architecture in Beginner-Friendly Plain English (Feature 17)
+@router.post("/explain-architecture")
+def api_explain_architecture(arch: ArchitectureModel):
+    return explain_architecture_narrative(arch)
+
+
+# 2d. Technology Comparison API (Feature 12)
+@router.post("/tech-comparison")
+def api_tech_comparison(req: TechComparisonRequest):
+    return compare_technologies(req.technologies)
+
+
+# 2e. AI Provider Usage & Session Stats (Feature 3)
+@router.get("/ai/usage")
+def api_ai_usage():
+    return usage_manager.get_summary()
+
+
+# 2f. Clear Response Cache (Feature 4)
+@router.post("/cache/clear")
+def api_clear_cache():
+    response_cache.clear()
+    return {"status": "ok", "message": "Architecture cache cleared successfully"}
 
 
 # 3. Architecture Validator

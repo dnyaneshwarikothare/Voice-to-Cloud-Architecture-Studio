@@ -989,3 +989,223 @@ export async function deleteDecisionApi(decision_id) {
   return { message: 'Decision deleted' };
 }
 
+/**
+ * 23. Generate Scaled Architecture (Feature 10)
+ */
+export async function generateScaledArchitectureApi(architecture, targetUsers = 1000000) {
+  try {
+    const res = await fetch(`${API_BASE}/generate-scaled-architecture`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ architecture, target_users: targetUsers })
+    });
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch (err) {
+    console.warn('Backend scaled architecture API unavailable, using client fallback:', err);
+  }
+
+  // Client-side fallback for scaled architecture
+  const comps = JSON.parse(JSON.stringify(architecture?.components || []));
+  const conns = JSON.parse(JSON.stringify(architecture?.connections || []));
+  const types = new Set(comps.map(c => c.type));
+
+  const newComps = [];
+  const newConns = [];
+
+  // Add CDN if missing
+  if (!types.has('cdn')) {
+    const fe = comps.find(c => c.type === 'frontend') || comps[0];
+    if (fe) {
+      newComps.push({
+        id: 'edge_cdn',
+        name: 'CloudFront CDN',
+        type: 'cdn',
+        role: 'Edge Content Delivery Network',
+        technology: 'AWS CloudFront',
+        purpose: 'Caches static assets at edge PoPs globally.',
+        why_recommended: 'Absorbs 85%+ of repeat frontend traffic.',
+        tier: 'standard'
+      });
+      newConns.push({ from: 'edge_cdn', to: fe.id, protocol: 'HTTPS', label: 'Origin Fetch' });
+    }
+  }
+
+  // Add Load Balancer if missing
+  const be = comps.find(c => c.type === 'backend');
+  if (!types.has('loadbalancer') && !types.has('gateway') && be) {
+    newComps.push({
+      id: 'app_lb',
+      name: 'Application Load Balancer',
+      type: 'loadbalancer',
+      role: 'Traffic Distribution',
+      technology: 'AWS ALB',
+      purpose: 'Distributes traffic evenly across multiple backend instances.',
+      why_recommended: 'Eliminates single point of failure.',
+      tier: 'standard'
+    });
+    newConns.push({ from: 'app_lb', to: be.id, protocol: 'HTTP', label: 'Load Balanced' });
+    be.name = `${be.name} (3x Cluster)`;
+  }
+
+  // Add Redis if missing
+  const db = comps.find(c => c.type === 'database');
+  if (!types.has('cache') && db && be) {
+    newComps.push({
+      id: 'redis_cache',
+      name: 'Redis In-Memory Cache',
+      type: 'cache',
+      role: 'In-Memory Query Cache',
+      technology: 'Redis',
+      purpose: 'Absorbs hot database read queries.',
+      why_recommended: 'Sub-millisecond query responses.',
+      tier: 'medium'
+    });
+    newConns.push({ from: be.id, to: 'redis_cache', protocol: 'TCP', label: 'Cache Reads' });
+  }
+
+  // Add Database Read Replica if missing
+  if (db && !comps.some(c => c.id.includes('replica'))) {
+    newComps.push({
+      id: `${db.id}_replica`,
+      name: `${db.name} (Read Replica)`,
+      type: 'database',
+      role: 'Read-Only Database Replica',
+      technology: `${db.technology || 'PostgreSQL'} Read Replica`,
+      purpose: 'Handles read-heavy query traffic.',
+      why_recommended: 'Offloads read load from primary transactional database.',
+      tier: db.tier || 'standard'
+    });
+    newConns.push({ from: db.id, to: `${db.id}_replica`, protocol: 'SQL', label: 'Replication' });
+    if (be) {
+      newConns.push({ from: be.id, to: `${db.id}_replica`, protocol: 'SQL', label: 'Read Queries' });
+    }
+  }
+
+  return {
+    project_name: `${architecture.project_name || 'Cloud Architecture'} (Scaled Architecture)`,
+    description: `Auto-scaled architecture designed for ${targetUsers.toLocaleString()} users/month.`,
+    cloud_provider: architecture.cloud_provider || 'logical',
+    components: [...comps, ...newComps],
+    connections: [...conns, ...newConns]
+  };
+}
+
+/**
+ * 24. Explain Architecture in Simple English (Feature 17)
+ */
+export async function explainArchitectureApi(architecture) {
+  try {
+    const res = await fetch(`${API_BASE}/explain-architecture`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(architecture)
+    });
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch (err) {
+    console.warn('Backend explain API unavailable, using client fallback:', err);
+  }
+
+  // Client-side fallback
+  const comps = architecture?.components || [];
+  const explanations = comps.map(c => ({
+    id: c.id,
+    name: c.name,
+    type: c.type,
+    technology: c.technology || c.name,
+    simple_explanation: `${c.name} (${c.technology || c.name}) acts as the ${c.role || c.type}. ${c.purpose || ''}`
+  }));
+
+  const steps = [];
+  const fe = comps.find(c => c.type === 'frontend');
+  const be = comps.find(c => c.type === 'backend');
+  const db = comps.find(c => c.type === 'database');
+  const ca = comps.find(c => c.type === 'cache');
+
+  if (fe) steps.push(`Step 1: The user accesses the application through ${fe.name}.`);
+  if (be) steps.push(`Step 2: User requests are sent to ${be.name} to process business logic.`);
+  if (ca) steps.push(`Step 3: Frequent queries are retrieved fast from in-memory cache ${ca.name}.`);
+  if (db) steps.push(`Step 4: Persistent records are stored securely in ${db.name}.`);
+  steps.push('Step 5: The final calculated response is delivered back to the user.');
+
+  return {
+    summary: `This architecture consists of ${comps.length} decoupled components designed to balance performance, scalability, and security.`,
+    components_explanation: explanations,
+    request_flow: steps,
+    key_takeaways: [
+      'Separation of concerns keeps each service maintainable.',
+      'Private data stores are isolated from public internet access.',
+      'Caching layers reduce load on the primary database.'
+    ]
+  };
+}
+
+/**
+ * 25. Compare Technologies (Feature 12)
+ */
+export async function compareTechnologiesApi(technologies = ['fastapi', 'node', 'postgresql', 'redis']) {
+  try {
+    const res = await fetch(`${API_BASE}/tech-comparison`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ technologies })
+    });
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch (err) {
+    console.warn('Backend tech-comparison API unavailable:', err);
+  }
+
+  return {
+    technologies: [],
+    comparison_count: 0,
+    guidance: 'Technology selection depends on workload characteristics and developer expertise.'
+  };
+}
+
+/**
+ * 26. Get AI Usage Statistics (Feature 3)
+ */
+export async function getAIUsageStatsApi() {
+  try {
+    const res = await fetch(`${API_BASE}/ai/usage`);
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch (err) {
+    console.warn('AI usage stats API unavailable:', err);
+  }
+  return {
+    session_start: new Date().toISOString(),
+    total_requests: 0,
+    successful_requests: 0,
+    failed_requests: 0,
+    cached_requests: 0,
+    fallback_events: 0,
+    success_rate_pct: 100,
+    cache_hit_rate_pct: 0,
+    provider_stats: {},
+    recent_activity: []
+  };
+}
+
+/**
+ * 27. Clear Response Cache (Feature 4)
+ */
+export async function clearResponseCacheApi() {
+  try {
+    const res = await fetch(`${API_BASE}/cache/clear`, { method: 'POST' });
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch (err) {
+    console.warn('Clear cache API error:', err);
+  }
+  return { status: 'ok', message: 'Local cache reset' };
+}
+
+

@@ -74,6 +74,9 @@ class ArchitectureModel(BaseModel):
     components: List[Component] = Field(default_factory=list)
     connections: List[Connection] = Field(default_factory=list)
     cloud_provider: Optional[str] = Field(default="logical", description="logical, aws, or gcp")
+    provider_used: Optional[str] = Field(default=None, description="AI or fallback provider used")
+    provider_notice: Optional[str] = Field(default=None, description="User friendly provider notice")
+    cached: Optional[bool] = Field(default=False, description="Whether returned from cache")
 
     @model_validator(mode="after")
     def validate_graph(self) -> "ArchitectureModel":
@@ -121,6 +124,7 @@ class GenerateArchitectureRequest(BaseModel):
     application_type: Optional[str] = None
     answers: Optional[Dict[str, str]] = Field(default_factory=dict)
     cloud_provider: Optional[str] = "logical"
+    force_refresh: Optional[bool] = False
 
 
 class ValidationIssue(BaseModel):

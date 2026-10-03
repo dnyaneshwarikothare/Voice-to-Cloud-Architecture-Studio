@@ -1,5 +1,19 @@
 import React from 'react';
-import { Cloud, Save, Download, Plus, FolderOpen, Sparkles, Undo2, Redo2, History, BookOpen, Wrench } from 'lucide-react';
+import {
+  Cloud,
+  Save,
+  Download,
+  Plus,
+  FolderOpen,
+  Sparkles,
+  Undo2,
+  Redo2,
+  History,
+  BookOpen,
+  Wrench,
+  Cpu,
+  Layers
+} from 'lucide-react';
 import { PRESET_ARCHITECTURES } from '../data/presetArchitectures';
 
 export function Header({
@@ -9,25 +23,27 @@ export function Header({
   onOpenSavedListModal,
   onOpenExportModal,
   onOpenVersionModal,
+  onOpenAIUsageModal,
   onUndo,
   onRedo,
   canUndo = false,
   canRedo = false,
   isBeginnerMode = false,
   onToggleBeginnerMode,
-  activeArchitectureName
+  activeArchitectureName,
+  providerUsed = 'Auto-Router'
 }) {
   return (
     <header className="navbar">
       <div className="nav-brand">
         <div className="nav-logo-icon">
-          <Cloud size={22} color="#ffffff" />
+          <Cloud size={20} color="#ffffff" />
         </div>
         <div>
           <div className="nav-brand-title">Voice-to-Cloud Architecture Studio</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '2px' }}>
-            <span className="nav-badge">AI Studio</span>
-            <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
+            <span className="nav-badge">Architecture Studio</span>
+            <span style={{ fontSize: '0.74rem', color: '#64748b', fontWeight: 500 }}>
               {activeArchitectureName ? `• ${activeArchitectureName}` : ''}
             </span>
           </div>
@@ -35,25 +51,41 @@ export function Header({
       </div>
 
       <div className="nav-actions">
+        {/* AI Provider & Health Status Pill */}
+        <button
+          className="btn btn-secondary btn-sm"
+          onClick={onOpenAIUsageModal}
+          title="View AI Provider Router, Rate Limits, and Session Usage"
+          style={{
+            background: '#f8fafc',
+            borderColor: '#cbd5e1',
+            color: '#0f172a',
+            fontSize: '0.72rem'
+          }}
+        >
+          <Cpu size={13} color="#2563eb" />
+          <span>AI Engine: <b>{providerUsed || 'Auto-Fallback'}</b></span>
+        </button>
+
         {/* Undo / Redo Controls */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(15, 23, 42, 0.6)', padding: '3px', borderRadius: '6px', border: '1px solid var(--border-subtle)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '2px', background: '#f1f5f9', padding: '2px', borderRadius: '6px', border: '1px solid #cbd5e1' }}>
           <button
             className="icon-btn"
             onClick={onUndo}
             disabled={!canUndo}
             title={canUndo ? 'Undo last change' : 'No changes to undo'}
-            style={{ width: '28px', height: '28px', padding: 0, opacity: canUndo ? 1 : 0.4 }}
+            style={{ width: '28px', height: '28px', padding: 0, opacity: canUndo ? 1 : 0.4, border: 'none', background: 'transparent' }}
           >
-            <Undo2 size={14} />
+            <Undo2 size={13} />
           </button>
           <button
             className="icon-btn"
             onClick={onRedo}
             disabled={!canRedo}
             title={canRedo ? 'Redo change' : 'No changes to redo'}
-            style={{ width: '28px', height: '28px', padding: 0, opacity: canRedo ? 1 : 0.4 }}
+            style={{ width: '28px', height: '28px', padding: 0, opacity: canRedo ? 1 : 0.4, border: 'none', background: 'transparent' }}
           >
-            <Redo2 size={14} />
+            <Redo2 size={13} />
           </button>
         </div>
 
@@ -63,25 +95,21 @@ export function Header({
           onClick={onToggleBeginnerMode}
           title={isBeginnerMode ? 'Switch to Advanced Mode (Cloud Terminology)' : 'Switch to Beginner Mode (Plain English analogies)'}
           style={{
-            fontSize: '0.74rem',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            background: isBeginnerMode ? 'rgba(16, 185, 129, 0.15)' : 'rgba(56, 189, 248, 0.15)',
-            borderColor: isBeginnerMode ? '#10b981' : '#38bdf8',
-            color: isBeginnerMode ? '#a7f3d0' : '#bae6fd'
+            fontSize: '0.72rem',
+            background: isBeginnerMode ? '#f0fdf4' : '#ffffff',
+            borderColor: isBeginnerMode ? '#86efac' : '#cbd5e1',
+            color: isBeginnerMode ? '#15803d' : '#0f172a'
           }}
         >
-          {isBeginnerMode ? <BookOpen size={14} color="#10b981" /> : <Wrench size={14} color="#38bdf8" />}
+          {isBeginnerMode ? <BookOpen size={13} color="#16a34a" /> : <Wrench size={13} color="#2563eb" />}
           <span>{isBeginnerMode ? 'Beginner Mode' : 'Advanced Mode'}</span>
         </button>
 
         {/* Demo Mode Presets Dropdown */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <Sparkles size={14} color="#a855f7" />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
           <select
-            className="btn btn-secondary btn-sm"
-            style={{ padding: '6px 10px', fontSize: '0.76rem', background: '#0f172a' }}
+            className="input-custom"
+            style={{ padding: '4px 8px', fontSize: '0.74rem', height: '30px', width: 'auto' }}
             onChange={(e) => {
               if (e.target.value) {
                 const preset = PRESET_ARCHITECTURES.find(p => p.id === e.target.value);
@@ -91,7 +119,7 @@ export function Header({
             }}
             defaultValue=""
           >
-            <option value="" disabled>✨ Load Demo Architecture (9 Domains)...</option>
+            <option value="" disabled>Load Demo (9 Domains)...</option>
             {PRESET_ARCHITECTURES.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name}
@@ -106,8 +134,8 @@ export function Header({
           onClick={onOpenVersionModal}
           title="Save or compare architecture versions"
         >
-          <History size={14} />
-          Versions
+          <History size={13} />
+          <span>Versions</span>
         </button>
 
         <button
@@ -115,8 +143,8 @@ export function Header({
           onClick={onNewArchitecture}
           title="Create a new blank architecture"
         >
-          <Plus size={14} />
-          New
+          <Plus size={13} />
+          <span>New</span>
         </button>
 
         <button
@@ -124,8 +152,8 @@ export function Header({
           onClick={onOpenSaveModal}
           title="Save current architecture to database or library"
         >
-          <Save size={14} />
-          Save
+          <Save size={13} />
+          <span>Save</span>
         </button>
 
         <button
@@ -133,17 +161,17 @@ export function Header({
           onClick={onOpenSavedListModal}
           title="View and restore saved architectures"
         >
-          <FolderOpen size={14} />
-          Library
+          <FolderOpen size={13} />
+          <span>Library</span>
         </button>
 
         <button
           className="btn btn-primary btn-sm"
           onClick={onOpenExportModal}
-          title="Export Mermaid code, SVG, PNG, JSON, or Terraform"
+          title="Export Mermaid code, SVG, PNG, JSON, PDF, or Terraform"
         >
-          <Download size={14} />
-          Export
+          <Download size={13} />
+          <span>Export</span>
         </button>
       </div>
     </header>

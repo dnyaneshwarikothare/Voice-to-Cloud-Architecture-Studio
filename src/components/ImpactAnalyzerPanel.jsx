@@ -45,204 +45,119 @@ export function ImpactAnalyzerPanel({ architecture }) {
 
   const targetComp = components.find(c => c.id === targetId);
 
-  const getBadgeStyle = (level) => {
-    switch (level) {
-      case 'CRITICAL':
-        return { bg: 'rgba(244, 63, 94, 0.2)', border: '#f43f5e', text: '#fda4af' };
-      case 'HIGH IMPACT':
-        return { bg: 'rgba(245, 158, 11, 0.2)', border: '#f59e0b', text: '#fde68a' };
-      case 'MEDIUM IMPACT':
-        return { bg: 'rgba(56, 189, 248, 0.2)', border: '#38bdf8', text: '#bae6fd' };
-      default:
-        return { bg: 'rgba(16, 185, 129, 0.2)', border: '#10b981', text: '#a7f3d0' };
-    }
-  };
-
-  const currentBadge = getBadgeStyle(impactData?.overall_impact_level || 'LOW IMPACT');
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-      {/* Header Banner */}
-      <div style={{ background: '#0b1120', border: '1px solid #1e293b', borderRadius: '8px', padding: '12px 14px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Activity size={16} color="#38bdf8" />
-            <span style={{ fontSize: '0.86rem', fontWeight: 700, color: '#f8fafc' }}>
-              Architecture Change Impact Analyzer
-            </span>
-          </div>
-          {impactData && (
-            <span style={{
-              background: currentBadge.bg,
-              border: `1px solid ${currentBadge.border}`,
-              color: currentBadge.text,
-              fontSize: '0.62rem',
-              fontWeight: 700,
-              padding: '2px 8px',
-              borderRadius: '12px'
-            }}>
-              {impactData.overall_impact_level}
-            </span>
-          )}
-        </div>
-        <p style={{ margin: 0, fontSize: '0.74rem', color: '#94a3b8', lineHeight: 1.4 }}>
-          Analyzes dependent services, upstream callers, and downstream bottlenecks whenever an architecture component is modified, removed, or fails.
-        </p>
-      </div>
-
-      {/* Target & Action Controls */}
-      <div style={{ background: '#070b14', border: '1px solid #1e293b', borderRadius: '8px', padding: '12px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+      {/* Header Card */}
+      <div className="card" style={{ background: '#ffffff', border: '1px solid #e2e8f0', padding: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
           <div>
-            <label style={{ fontSize: '0.7rem', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>
-              Component to Simulate
+            <div style={{ fontSize: '1.05rem', fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Activity size={20} color="#0284c7" />
+              <span>Architectural Impact &amp; Dependency Analyzer</span>
+            </div>
+            <p style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '4px' }}>
+              Predict the downstream ripple effects before removing or modifying components in your system topology.
+            </p>
+          </div>
+        </div>
+
+        {/* Controls */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px', marginTop: '14px' }}>
+          <div>
+            <label style={{ fontSize: '0.72rem', fontWeight: 600, color: '#475569', display: 'block', marginBottom: '4px' }}>
+              Target Component
             </label>
             <select
+              className="input"
               value={targetId}
-              onChange={(e) => {
+              onChange={e => {
                 setTargetId(e.target.value);
                 runAnalysis(e.target.value, action);
               }}
-              style={{ width: '100%', fontSize: '0.75rem', padding: '6px 8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '4px', color: '#f8fafc' }}
+              style={{ width: '100%', fontSize: '0.78rem', padding: '6px 10px' }}
             >
               {components.map(c => (
-                <option key={c.id} value={c.id}>
-                  {c.name} ({c.role || c.type})
-                </option>
+                <option key={c.id} value={c.id}>{c.name} ({c.type})</option>
               ))}
             </select>
           </div>
 
           <div>
-            <label style={{ fontSize: '0.7rem', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>
-              Simulated Action
+            <label style={{ fontSize: '0.72rem', fontWeight: 600, color: '#475569', display: 'block', marginBottom: '4px' }}>
+              Simulated Mutation Action
             </label>
             <select
+              className="input"
               value={action}
-              onChange={(e) => {
+              onChange={e => {
                 setAction(e.target.value);
                 runAnalysis(targetId, e.target.value);
               }}
-              style={{ width: '100%', fontSize: '0.75rem', padding: '6px 8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '4px', color: '#f8fafc' }}
+              style={{ width: '100%', fontSize: '0.78rem', padding: '6px 10px' }}
             >
-              <option value="remove">Remove Component</option>
-              <option value="fail">Simulate Outage / Failure</option>
-              <option value="modify">Modify Tier / Specs</option>
+              <option value="remove">Remove Component from Architecture</option>
+              <option value="modify">Modify Tier / Re-architect</option>
             </select>
           </div>
         </div>
-
-        <button
-          onClick={() => runAnalysis(targetId, action)}
-          disabled={isLoading}
-          className="secondary-btn"
-          style={{ width: '100%', padding: '6px', fontSize: '0.72rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-        >
-          <RefreshCw size={12} className={isLoading ? 'spin-icon' : ''} />
-          {isLoading ? 'Re-analyzing Dependencies...' : 'Recalculate Ripple Impact'}
-        </button>
       </div>
 
-      {/* Visual Dependency Flow Graph */}
-      {impactData?.dependency_graph?.length > 0 && (
-        <div style={{ background: '#0b1120', border: '1px solid #1e293b', borderRadius: '8px', padding: '12px' }}>
-          <span style={{ fontSize: '0.72rem', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '8px' }}>
-            Interactive Dependency Graph
-          </span>
-
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
-            {impactData.dependency_graph.map((node, idx) => {
-              let nodeStyle = { bg: 'rgba(255, 255, 255, 0.04)', border: '#334155', text: '#cbd5e1' };
-              if (node.status === 'changed') {
-                nodeStyle = { bg: 'rgba(244, 63, 94, 0.2)', border: '#f43f5e', text: '#fecdd3' };
-              } else if (node.status === 'critical') {
-                nodeStyle = { bg: 'rgba(244, 63, 94, 0.15)', border: '#f43f5e', text: '#fda4af' };
-              } else if (node.status === 'affected') {
-                nodeStyle = { bg: 'rgba(245, 158, 11, 0.15)', border: '#f59e0b', text: '#fde68a' };
-              }
-
-              return (
-                <div
-                  key={node.id}
-                  style={{
-                    background: nodeStyle.bg,
-                    border: `1px solid ${nodeStyle.border}`,
-                    borderRadius: '6px',
-                    padding: '6px 10px',
-                    fontSize: '0.72rem',
-                    color: nodeStyle.text,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    minWidth: '110px'
-                  }}
-                >
-                  <span style={{ fontWeight: 700 }}>{node.name}</span>
-                  <span style={{ fontSize: '0.62rem', color: '#94a3b8', textTransform: 'capitalize' }}>
-                    {node.role} • <b style={{ color: nodeStyle.text }}>{node.status.toUpperCase()}</b>
-                  </span>
-                </div>
-              );
-            })}
+      {/* Analysis Result */}
+      {impactData && (
+        <div className="card" style={{ background: '#ffffff', border: '1px solid #e2e8f0', padding: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+            <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#0f172a' }}>
+              Impact Assessment for: <code style={{ color: '#2563eb' }}>{targetComp?.name}</code>
+            </span>
+            <span className="badge badge-warning" style={{ fontSize: '0.68rem' }}>
+              {impactData.overall_impact_level || 'MEDIUM IMPACT'}
+            </span>
           </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '10px' }}>
+            <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '10px' }}>
+              <div style={{ fontSize: '0.68rem', color: '#64748b', fontWeight: 600 }}>AFFECTED CALLERS</div>
+              <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#0f172a', marginTop: '2px' }}>
+                {impactData.affected_callers?.length || 0} upstream services
+              </div>
+              <div style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '2px' }}>
+                {impactData.affected_callers?.join(', ') || 'No inbound dependencies'}
+              </div>
+            </div>
+
+            <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '10px' }}>
+              <div style={{ fontSize: '0.68rem', color: '#64748b', fontWeight: 600 }}>SEVERED CONNECTIONS</div>
+              <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#0f172a', marginTop: '2px' }}>
+                {impactData.broken_connections_count || 0} active links
+              </div>
+              <div style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '2px' }}>
+                Network edges requiring rerouting
+              </div>
+            </div>
+
+            <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '10px' }}>
+              <div style={{ fontSize: '0.68rem', color: '#64748b', fontWeight: 600 }}>HEALTH SCORE DELTA</div>
+              <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#dc2626', marginTop: '2px' }}>
+                {impactData.estimated_health_delta || '-15 pts'}
+              </div>
+              <div style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '2px' }}>
+                Resilience impact if removed
+              </div>
+            </div>
+          </div>
+
+          {impactData.warnings && impactData.warnings.length > 0 && (
+            <div style={{ marginTop: '12px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '6px', padding: '10px', fontSize: '0.75rem', color: '#92400e' }}>
+              <strong>Architecture Warnings:</strong>
+              <ul style={{ margin: '4px 0 0', paddingLeft: '18px' }}>
+                {impactData.warnings.map((w, i) => (
+                  <li key={i}>{w}</li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       )}
-
-      {/* Ripple Effect Cards */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-        <span style={{ fontSize: '0.72rem', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-          Identified Ripple Effects ({impactData?.affected_components?.length || 0})
-        </span>
-
-        {impactData?.affected_components?.length === 0 ? (
-          <div style={{ background: '#0b1120', border: '1px solid #1e293b', borderRadius: '6px', padding: '12px', textAlign: 'center', fontSize: '0.72rem', color: '#64748b' }}>
-            No major downstream breaking dependencies detected for this component.
-          </div>
-        ) : (
-          impactData?.affected_components?.map((item, idx) => {
-            const bStyle = getBadgeStyle(item.impact_level);
-            return (
-              <div
-                key={idx}
-                style={{
-                  background: '#0b1120',
-                  border: `1px solid ${bStyle.border}44`,
-                  borderLeft: `4px solid ${bStyle.border}`,
-                  borderRadius: '6px',
-                  padding: '10px 12px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '6px'
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: '0.76rem', fontWeight: 700, color: '#f8fafc' }}>
-                    Affected: {item.affected_component_name}
-                  </span>
-                  <span style={{ background: bStyle.bg, color: bStyle.text, fontSize: '0.6rem', fontWeight: 700, padding: '2px 6px', borderRadius: '4px' }}>
-                    {item.impact_level}
-                  </span>
-                </div>
-
-                <div style={{ fontSize: '0.72rem', color: '#cbd5e1' }}>
-                  <b>Reason:</b> {item.reason}
-                </div>
-
-                <div style={{ fontSize: '0.72rem', color: '#fecdd3' }}>
-                  <b>Expected Impact:</b> {item.expected_impact}
-                </div>
-
-                <div style={{ fontSize: '0.72rem', color: '#86efac', background: 'rgba(16, 185, 129, 0.08)', padding: '6px 8px', borderRadius: '4px' }}>
-                  <b>Suggested Mitigation:</b> {item.suggested_mitigation}
-                </div>
-              </div>
-            );
-          })
-        )}
-      </div>
-
-      <div style={{ fontSize: '0.62rem', color: '#64748b', fontStyle: 'italic', textAlign: 'center' }}>
-        {impactData?.disclaimer}
-      </div>
     </div>
   );
 }

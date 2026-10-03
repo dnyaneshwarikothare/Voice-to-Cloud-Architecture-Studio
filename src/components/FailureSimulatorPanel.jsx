@@ -13,19 +13,20 @@ import {
   Lock,
   CloudLightning,
   ArrowDown,
-  Layers
+  Layers,
+  Play
 } from 'lucide-react';
 import { simulateFailureApi } from '../services/apiService';
 
 const FAILURE_TARGETS = [
-  { id: 'database', label: 'Database Outage', icon: Database, color: '#10b981', targetType: 'database' },
-  { id: 'backend', label: 'Backend Crash', icon: Server, color: '#8b5cf6', targetType: 'backend' },
-  { id: 'gateway', label: 'API Gateway Down', icon: Split, color: '#06b6d4', targetType: 'gateway' },
-  { id: 'cache', label: 'Redis Cache Outage', icon: Zap, color: '#f59e0b', targetType: 'cache' },
-  { id: 'storage', label: 'Storage (S3) Failure', icon: Globe, color: '#14b8a6', targetType: 'storage' },
-  { id: 'payment', label: 'Payment Gateway Timeout', icon: CreditCard, color: '#ec4899', targetType: 'payment' },
-  { id: 'auth', label: 'Auth Service Failure', icon: Lock, color: '#ef4444', targetType: 'auth' },
-  { id: 'external_api', label: 'External API Failure', icon: CloudLightning, color: '#f97316', targetType: 'external_api' }
+  { id: 'database', label: 'Database Outage', icon: Database, color: '#16a34a', targetType: 'database' },
+  { id: 'backend', label: 'Backend Crash', icon: Server, color: '#2563eb', targetType: 'backend' },
+  { id: 'gateway', label: 'API Gateway Down', icon: Split, color: '#0284c7', targetType: 'gateway' },
+  { id: 'cache', label: 'Redis Cache Outage', icon: Zap, color: '#d97706', targetType: 'cache' },
+  { id: 'storage', label: 'Storage (S3) Failure', icon: Globe, color: '#059669', targetType: 'storage' },
+  { id: 'payment', label: 'Payment Gateway Timeout', icon: CreditCard, color: '#db2777', targetType: 'payment' },
+  { id: 'auth', label: 'Auth Service Failure', icon: Lock, color: '#dc2626', targetType: 'auth' },
+  { id: 'external_api', label: 'External API Failure', icon: CloudLightning, color: '#ea580c', targetType: 'external_api' }
 ];
 
 export function FailureSimulatorPanel({
@@ -70,209 +71,129 @@ export function FailureSimulatorPanel({
     }
   };
 
-  // Derive human-readable cascade chain
-  const getCascadeChain = (targetType) => {
-    switch (targetType) {
-      case 'database':
-        return {
-          origin: 'Primary PostgreSQL Database',
-          dependent: 'Order Service & Product Catalog Microservices',
-          userImpact: 'Checkout & Transaction Creation Halted (HTTP 500)'
-        };
-      case 'gateway':
-        return {
-          origin: 'Central API Gateway',
-          dependent: 'All Upstream Client Endpoints & Webhooks',
-          userImpact: 'Mobile & Web Frontends Disconnected from APIs'
-        };
-      case 'cache':
-        return {
-          origin: 'Redis In-Memory Cache Cluster',
-          dependent: 'Primary Database (Cache-Miss Stampede)',
-          userImpact: 'Slow Page Loads & Database Connection Timeouts'
-        };
-      case 'payment':
-        return {
-          origin: 'Stripe / Payment Gateway Microservice',
-          dependent: 'Order Processing & Cart Checkout',
-          userImpact: 'Customer Transactions Rejected; Cart Abandonment'
-        };
-      case 'auth':
-        return {
-          origin: 'Authentication & Identity Service',
-          dependent: 'API Gateway JWT Validator & Protected APIs',
-          userImpact: 'User Sign-in & Authorized Requests Blocked (HTTP 401)'
-        };
-      case 'storage':
-        return {
-          origin: 'S3 / Cloud Object Storage',
-          dependent: 'Static Media Server & Upload Handlers',
-          userImpact: 'File Uploads & Image Previews Broken'
-        };
-      case 'external_api':
-        return {
-          origin: 'External 3rd-Party Partner API',
-          dependent: 'Integration Sync Microservice',
-          userImpact: 'Third-party Data Enrichment Unavailable'
-        };
-      default:
-        return {
-          origin: 'Backend Compute Cluster',
-          dependent: 'API Gateway Routes',
-          userImpact: 'Service Degraded & Fallback Responses Triggered'
-        };
-    }
-  };
-
-  const chain = getCascadeChain(activeFailureState?.targetType || selectedTarget);
-
   return (
-    <div style={{ display: 'flex', flex: 1, flexDirection: 'column', gap: '14px' }}>
-      <div>
-        <h4 style={{ fontSize: '0.88rem', fontWeight: 600, color: '#f8fafc', margin: '0 0 4px 0' }}>
-          Architectural Failure & Cascade Simulator
-        </h4>
-        <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
-          Select an outage scenario to inspect the multi-tier failure cascade, dependent service impacts, and user feature disruptions.
-        </span>
-      </div>
-
-      {/* Target Selector Grid (All 8 Scenarios) */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
-        {FAILURE_TARGETS.map((t) => {
-          const Icon = t.icon;
-          const isCurrent = (activeFailureState?.targetType || selectedTarget) === t.id && activeFailureState?.isActive;
-          return (
-            <button
-              key={t.id}
-              onClick={() => {
-                setSelectedTarget(t.id);
-                runFailureSimulation(t.id);
-              }}
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '4px',
-                padding: '8px 4px',
-                borderRadius: '6px',
-                background: isCurrent ? 'rgba(244, 63, 94, 0.2)' : 'rgba(15, 23, 42, 0.6)',
-                border: isCurrent ? '1px solid #f43f5e' : '1px solid var(--border-subtle)',
-                color: isCurrent ? '#f43f5e' : '#cbd5e1',
-                cursor: 'pointer',
-                fontSize: '0.64rem',
-                fontWeight: 500,
-                transition: 'all 0.15s ease'
-              }}
-            >
-              <Icon size={16} color={isCurrent ? '#f43f5e' : t.color} />
-              <span style={{ textAlign: 'center', lineHeight: 1.2 }}>{t.label}</span>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Active Simulation Actions */}
-      {activeFailureState?.isActive && (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(244, 63, 94, 0.1)', border: '1px solid rgba(244, 63, 94, 0.3)', borderRadius: '6px', padding: '8px 12px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#fda4af', fontSize: '0.74rem', fontWeight: 600 }}>
-            <AlertOctagon size={16} color="#f43f5e" />
-            <span>Outage Active (Nodes Pulsing Red on Diagram)</span>
-          </div>
-          <button className="btn btn-secondary btn-sm" onClick={handleClearFailure} style={{ fontSize: '0.7rem' }}>
-            <RotateCcw size={12} /> Clear Outage
-          </button>
-        </div>
-      )}
-
-      {/* Visual 3-Tier Cascade Path */}
-      {activeFailureState?.isActive && (
-        <div style={{ background: '#070b14', border: '1px solid #1e293b', borderRadius: '8px', padding: '12px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-          <span style={{ fontSize: '0.68rem', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-            Outage Cascade Flow Path
-          </span>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'center' }}>
-            {/* Step 1: Failed Origin */}
-            <div style={{ width: '100%', background: 'rgba(244, 63, 94, 0.18)', border: '1px solid #f43f5e', borderRadius: '6px', padding: '8px 10px', textAlign: 'center' }}>
-              <span style={{ fontSize: '0.62rem', color: '#fda4af', fontWeight: 700, textTransform: 'uppercase', display: 'block' }}>FAILED COMPONENT</span>
-              <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#fff' }}>{chain.origin}</span>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+      {/* Header Card */}
+      <div className="card" style={{ background: '#ffffff', border: '1px solid #e2e8f0', padding: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+          <div>
+            <div style={{ fontSize: '1.05rem', fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <ShieldAlert size={20} color="#dc2626" />
+              <span>Chaos &amp; Failure Mode Simulator</span>
             </div>
-
-            <ArrowDown size={14} color="#f43f5e" />
-
-            {/* Step 2: Dependent Services */}
-            <div style={{ width: '100%', background: 'rgba(245, 158, 11, 0.15)', border: '1px solid #f59e0b', borderRadius: '6px', padding: '8px 10px', textAlign: 'center' }}>
-              <span style={{ fontSize: '0.62rem', color: '#fde68a', fontWeight: 700, textTransform: 'uppercase', display: 'block' }}>DEPENDENT COMPONENTS</span>
-              <span style={{ fontSize: '0.76rem', fontWeight: 600, color: '#fff' }}>{chain.dependent}</span>
-            </div>
-
-            <ArrowDown size={14} color="#f59e0b" />
-
-            {/* Step 3: User-Impacted Features */}
-            <div style={{ width: '100%', background: 'rgba(244, 63, 94, 0.12)', border: '1px dashed #f43f5e', borderRadius: '6px', padding: '8px 10px', textAlign: 'center' }}>
-              <span style={{ fontSize: '0.62rem', color: '#fca5a5', fontWeight: 700, textTransform: 'uppercase', display: 'block' }}>USER-IMPACTED FEATURES</span>
-              <span style={{ fontSize: '0.76rem', fontWeight: 600, color: '#fecdd3' }}>{chain.userImpact}</span>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Impact Assessment Card */}
-      {failureResult && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          {/* Blast Radius Counts */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
-            <div style={{ background: 'rgba(244, 63, 94, 0.15)', border: '1px solid rgba(244, 63, 94, 0.3)', borderRadius: '6px', padding: '8px', textAlign: 'center' }}>
-              <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#f43f5e' }}>
-                {failureResult.failed_component_ids.length}
-              </div>
-              <div style={{ fontSize: '0.64rem', color: '#fda4af' }}>Failed Origin</div>
-            </div>
-            <div style={{ background: 'rgba(245, 158, 11, 0.15)', border: '1px solid rgba(245, 158, 11, 0.3)', borderRadius: '6px', padding: '8px', textAlign: 'center' }}>
-              <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#f59e0b' }}>
-                {failureResult.cascaded_failed_component_ids.length}
-              </div>
-              <div style={{ fontSize: '0.64rem', color: '#fed7aa' }}>Cascaded Impact</div>
-            </div>
-            <div style={{ background: 'rgba(16, 185, 129, 0.15)', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: '6px', padding: '8px', textAlign: 'center' }}>
-              <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#10b981' }}>
-                {failureResult.operational_component_ids.length}
-              </div>
-              <div style={{ fontSize: '0.64rem', color: '#a7f3d0' }}>Operational</div>
-            </div>
-          </div>
-
-          {/* Business Impact Card */}
-          <div style={{ background: '#0b1120', border: '1px solid rgba(244, 63, 94, 0.3)', borderRadius: '8px', padding: '12px' }}>
-            <div style={{ fontSize: '0.74rem', fontWeight: 600, color: '#f43f5e', textTransform: 'uppercase', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <ShieldAlert size={14} />
-              User Impact & Operational Risk
-            </div>
-            <p style={{ fontSize: '0.78rem', color: '#f1f5f9', margin: 0, lineHeight: 1.5 }}>
-              {failureResult.business_impact}
+            <p style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '4px' }}>
+              Simulates component outage blast radius and identifies cascading dependency failures.
             </p>
           </div>
 
-          {/* Recommended Mitigations */}
-          <div style={{ background: '#0b1120', border: '1px solid var(--border-subtle)', borderRadius: '8px', padding: '12px' }}>
-            <div style={{ fontSize: '0.74rem', fontWeight: 600, color: '#38bdf8', textTransform: 'uppercase', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <CheckCircle2 size={14} />
-              Architectural Mitigations & Failover Patterns
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              {failureResult.mitigation_strategies.map((m, idx) => (
-                <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '0.74rem', color: '#cbd5e1' }}>
-                  <span style={{ color: '#38bdf8', marginTop: '1px' }}>🛡️</span>
-                  <span>{m}</span>
+          {activeFailureState?.isActive && (
+            <button className="btn btn-secondary btn-sm" onClick={handleClearFailure} style={{ fontSize: '0.74rem' }}>
+              <RotateCcw size={13} />
+              <span>Reset Failure State</span>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Target Selector */}
+      <div className="card" style={{ background: '#ffffff', border: '1px solid #e2e8f0', padding: '16px' }}>
+        <h4 style={{ fontSize: '0.86rem', fontWeight: 700, color: '#0f172a', marginBottom: '10px' }}>
+          Select Outage Scenario to Inject:
+        </h4>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '8px' }}>
+          {FAILURE_TARGETS.map(target => {
+            const Icon = target.icon;
+            const isSelected = selectedTarget === target.id;
+            const isTargetInArch = comps.some(c => c.type === target.targetType);
+
+            return (
+              <button
+                key={target.id}
+                onClick={() => setSelectedTarget(target.id)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '10px',
+                  borderRadius: '6px',
+                  border: `1px solid ${isSelected ? '#3b82f6' : '#e2e8f0'}`,
+                  background: isSelected ? '#eff6ff' : '#ffffff',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                <div style={{ width: '28px', height: '28px', borderRadius: '6px', background: `${target.color}15`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Icon size={15} color={target.color} />
                 </div>
-              ))}
+                <div>
+                  <div style={{ fontSize: '0.78rem', fontWeight: 600, color: '#0f172a' }}>
+                    {target.label}
+                  </div>
+                  <div style={{ fontSize: '0.66rem', color: isTargetInArch ? '#16a34a' : '#94a3b8' }}>
+                    {isTargetInArch ? 'Active in System' : 'Not configured'}
+                  </div>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+
+        <div style={{ marginTop: '14px', display: 'flex', justifyContent: 'flex-end' }}>
+          <button
+            className="btn btn-primary btn-sm"
+            onClick={() => runFailureSimulation(selectedTarget)}
+            disabled={isSimulating}
+            style={{ fontSize: '0.76rem', background: '#dc2626', borderColor: '#b91c1c' }}
+          >
+            <Play size={13} />
+            <span>{isSimulating ? 'Simulating Outage...' : 'Inject Outage &amp; Analyze Blast Radius'}</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Simulation Result */}
+      {failureResult && (
+        <div className="card" style={{ background: '#ffffff', border: '1px solid #fecaca', padding: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <AlertOctagon size={18} color="#dc2626" />
+              <strong style={{ fontSize: '0.92rem', color: '#991b1b' }}>Blast-Radius Analysis Report</strong>
+            </div>
+            <span className="badge badge-warning" style={{ fontSize: '0.68rem' }}>
+              Risk: {failureResult.risk_level || 'High'}
+            </span>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', fontSize: '0.76rem' }}>
+            <div style={{ background: '#fef2f2', border: '1px solid #fee2e2', borderRadius: '6px', padding: '10px' }}>
+              <strong style={{ color: '#b91c1c', display: 'block', marginBottom: '4px' }}>Primary Failed Services:</strong>
+              <div style={{ color: '#7f1d1d' }}>
+                {failureResult.failed_component_ids?.join(', ') || 'Target node'}
+              </div>
+            </div>
+
+            <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '6px', padding: '10px' }}>
+              <strong style={{ color: '#b45309', display: 'block', marginBottom: '4px' }}>Cascaded Impact Nodes:</strong>
+              <div style={{ color: '#78350f' }}>
+                {failureResult.cascaded_failed_component_ids?.length > 0
+                  ? failureResult.cascaded_failed_component_ids.join(', ')
+                  : 'Zero cascaded outages detected (decoupled).'}
+              </div>
             </div>
           </div>
 
-          <div style={{ fontSize: '0.62rem', color: '#64748b', fontStyle: 'italic', textAlign: 'center' }}>
-            ⚠️ {failureResult.disclaimer}
-          </div>
+          {failureResult.mitigations && failureResult.mitigations.length > 0 && (
+            <div style={{ marginTop: '12px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '6px', padding: '10px', fontSize: '0.76rem' }}>
+              <strong style={{ color: '#15803d', display: 'block', marginBottom: '4px' }}>Recommended Resiliency Mitigations:</strong>
+              <ul style={{ margin: 0, paddingLeft: '18px', color: '#166534' }}>
+                {failureResult.mitigations.map((m, i) => (
+                  <li key={i}>{m}</li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       )}
     </div>

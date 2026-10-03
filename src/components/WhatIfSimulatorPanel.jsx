@@ -1,456 +1,375 @@
 import React, { useState } from 'react';
-import { runWhatIfApi } from '../services/apiService';
 import {
-  HelpCircle,
-  Play,
+  Sparkles,
+  SlidersHorizontal,
   RotateCcw,
-  AlertTriangle,
   TrendingUp,
   DollarSign,
+  HeartPulse,
   Cpu,
+  Database,
+  Zap,
+  Server,
   Layers,
-  Sparkles,
-  ArrowRight,
-  ShieldAlert,
   CheckCircle2,
-  Sliders
+  AlertTriangle,
+  ArrowRight,
+  Globe
 } from 'lucide-react';
 
-const PRESET_SCENARIOS = [
-  {
-    title: 'What if traffic becomes 10x higher?',
-    name: '10x Black Friday Traffic Surge',
-    type: 'traffic_increase',
-    params: { multiplier: 10, current_users: 10000, current_rps: 100 }
-  },
-  {
-    title: 'What if PostgreSQL fails?',
-    name: 'Primary Database Outage',
-    type: 'component_failure',
-    params: { target_type: 'database' }
-  },
-  {
-    title: 'What if I remove Redis?',
-    name: 'Remove In-Memory Cache Tier',
-    type: 'component_removal',
-    params: { target_id: 'redis' }
-  },
-  {
-    title: 'What if monthly budget is ₹10,000 ($120)?',
-    name: 'Budget Cap ₹10,000/mo',
-    type: 'budget_constraint',
-    params: { budget: 120, currency: 'USD' }
-  },
-  {
-    title: 'What if users grow from 10k to 1 million?',
-    name: '1 Million Users Scaling',
-    type: 'user_growth',
-    params: { new_users: 1000000 }
-  },
-  {
-    title: 'What if I change Node.js to Python/FastAPI?',
-    name: 'Runtime Migration to Python',
-    type: 'technology_change',
-    params: { from_tech: 'Node.js', to_tech: 'Python/FastAPI' }
-  }
-];
-
 export function WhatIfSimulatorPanel({ architecture, onApplySimulatedArchitecture }) {
-  const [scenarioName, setScenarioName] = useState('10x Traffic Spike');
-  const [scenarioType, setScenarioType] = useState('traffic_increase');
-  const [multiplier, setMultiplier] = useState(10);
-  const [targetComponent, setTargetComponent] = useState(
-    architecture?.components?.find(c => c.type === 'database')?.id || 'database'
+  const defaultComponents = architecture?.components || [];
+  const defaultTypes = new Set(defaultComponents.map(c => c.type));
+
+  // What-If State Variables as requested in Feature 6:
+  // - Frontend technology
+  // - Backend technology
+  // - Database
+  // - Cache
+  // - Traffic
+  // - Number of backend instances
+  // - Cloud provider
+  const [frontendTech, setFrontendTech] = useState(
+    defaultComponents.find(c => c.type === 'frontend')?.technology || 'React (Vite SPA)'
   );
-  const [budgetVal, setBudgetVal] = useState(100);
-  const [userGrowthVal, setUserGrowthVal] = useState(1000000);
-  const [toTechVal, setToTechVal] = useState('Python/FastAPI');
+  const [backendTech, setBackendTech] = useState(
+    defaultComponents.find(c => c.type === 'backend')?.technology || 'FastAPI (Python)'
+  );
+  const [databaseTech, setDatabaseTech] = useState(
+    defaultComponents.find(c => c.type === 'database')?.technology || 'PostgreSQL'
+  );
+  const [hasCache, setHasCache] = useState(defaultTypes.has('cache'));
+  const [cacheTech, setCacheTech] = useState('Redis In-Memory');
+  const [monthlyTraffic, setMonthlyTraffic] = useState(100000); // 100k users
+  const [backendInstances, setBackendInstances] = useState(
+    defaultComponents.some(c => c.name?.includes('Cluster') || c.name?.includes('Replica')) ? 3 : 1
+  );
+  const [cloudProvider, setCloudProvider] = useState('aws');
 
-  const [isLoading, setIsLoading] = useState(false);
-  const [loadingStep, setLoadingStep] = useState('');
-  const [result, setResult] = useState(null);
+  // Baseline Cost & Health
+  const baseCost = defaultComponents.length * 28.5 + 35.0;
+  const baseHealth = 74;
 
-  const handleRunSimulation = async (overrideParams = null, overrideType = null, overrideName = null) => {
-    setIsLoading(true);
-    setLoadingStep('Analyzing current architecture topology...');
+  // Real-time What-If calculations
+  let calculatedCost = 25.0; // Base platform fee
 
-    const typeToUse = overrideType || scenarioType;
-    const nameToUse = overrideName || scenarioName;
+  // Frontend Cost
+  calculatedCost += frontendTech.includes('Next') ? 25.0 : 10.0;
 
-    let params = overrideParams || {};
-    if (!overrideParams) {
-      if (typeToUse === 'traffic_increase' || typeToUse === 'traffic_decrease') {
-        params = { multiplier, current_users: 10000, current_rps: 100 };
-      } else if (typeToUse === 'component_failure' || typeToUse === 'component_removal') {
-        params = { target_id: targetComponent, target_type: 'database' };
-      } else if (typeToUse === 'budget_constraint') {
-        params = { budget: budgetVal, currency: 'USD' };
-      } else if (typeToUse === 'user_growth') {
-        params = { new_users: userGrowthVal };
-      } else if (typeToUse === 'technology_change') {
-        params = { from_tech: 'Node.js', to_tech: toTechVal };
-      }
+  // Backend Cost per instance
+  const backendCostPerUnit = backendTech.includes('Spring') ? 45.0 : (backendTech.includes('Go') ? 22.0 : 30.0);
+  calculatedCost += backendCostPerUnit * backendInstances;
+
+  // Load Balancer needed if >1 instance
+  if (backendInstances > 1) {
+    calculatedCost += 24.0; // ALB cost
+  }
+
+  // Database Cost
+  calculatedCost += databaseTech.includes('Dynamo') ? 35.0 : (databaseTech.includes('Mongo') ? 58.0 : 54.0);
+
+  // Cache Cost
+  if (hasCache) {
+    calculatedCost += cacheTech.includes('Redis') ? 29.0 : 20.0;
+  }
+
+  // Bandwidth Cost based on traffic
+  calculatedCost += Math.round((monthlyTraffic / 10000) * 1.8);
+
+  // Cloud provider variance
+  if (cloudProvider === 'gcp') {
+    calculatedCost *= 0.94; // GCP ~6% cheaper
+  }
+
+  // Health Score calculation
+  let calculatedHealth = 50;
+  if (backendInstances > 1) calculatedHealth += 16;
+  if (hasCache) calculatedHealth += 14;
+  if (monthlyTraffic > 500000 && backendInstances < 3) calculatedHealth -= 15;
+  if (databaseTech === 'PostgreSQL' || databaseTech === 'Amazon DynamoDB') calculatedHealth += 10;
+  if (hasCache && backendInstances >= 2) calculatedHealth += 10;
+  calculatedHealth = Math.min(98, Math.max(35, calculatedHealth));
+
+  const costDelta = calculatedCost - baseCost;
+  const healthDelta = calculatedHealth - baseHealth;
+
+  const handleApply = () => {
+    if (!onApplySimulatedArchitecture) return;
+
+    const newComps = [
+      { id: 'web_ui', name: `Web UI (${frontendTech})`, type: 'frontend', technology: frontendTech },
+      { id: 'api_server', name: `API Cluster (${backendInstances}x ${backendTech})`, type: 'backend', technology: backendTech },
+      { id: 'primary_db', name: `Primary DB (${databaseTech})`, type: 'database', technology: databaseTech }
+    ];
+
+    if (backendInstances > 1) {
+      newComps.splice(1, 0, {
+        id: 'app_lb',
+        name: 'Application Load Balancer',
+        type: 'loadbalancer',
+        technology: cloudProvider === 'aws' ? 'AWS ALB' : 'GCP Cloud Load Balancing'
+      });
     }
 
-    // Step 2 simulated delay for visual feedback
-    setTimeout(() => {
-      setLoadingStep('Calculating traffic and dependency impact...');
-    }, 250);
+    if (hasCache) {
+      newComps.push({
+        id: 'cache_cluster',
+        name: cacheTech,
+        type: 'cache',
+        technology: 'Redis'
+      });
+    }
 
-    setTimeout(() => {
-      setLoadingStep('Generating recommendations and bottlenecks...');
-    }, 500);
+    const newConns = [];
+    if (backendInstances > 1) {
+      newConns.push({ from: 'web_ui', to: 'app_lb', protocol: 'HTTPS', label: 'Ingress' });
+      newConns.push({ from: 'app_lb', to: 'api_server', protocol: 'HTTP', label: 'Balanced' });
+    } else {
+      newConns.push({ from: 'web_ui', to: 'api_server', protocol: 'HTTPS', label: 'REST API' });
+    }
 
-    setTimeout(async () => {
-      try {
-        const res = await runWhatIfApi(architecture, nameToUse, typeToUse, params);
-        setResult(res);
-      } catch (err) {
-        console.error('What-If simulation failed:', err);
-      } finally {
-        setIsLoading(false);
-        setLoadingStep('');
-      }
-    }, 750);
-  };
+    newConns.push({ from: 'api_server', to: 'primary_db', protocol: 'SQL', label: 'Transactions' });
+    if (hasCache) {
+      newConns.push({ from: 'api_server', to: 'cache_cluster', protocol: 'TCP', label: 'Query Cache' });
+    }
 
-  const handleSelectPreset = (preset) => {
-    setScenarioName(preset.name);
-    setScenarioType(preset.type);
-    if (preset.params.multiplier) setMultiplier(preset.params.multiplier);
-    if (preset.params.budget) setBudgetVal(preset.params.budget);
-    if (preset.params.new_users) setUserGrowthVal(preset.params.new_users);
-    handleRunSimulation(preset.params, preset.type, preset.name);
+    onApplySimulatedArchitecture({
+      project_name: `${architecture?.project_name || 'System'} (What-If Scenario)`,
+      cloud_provider: cloudProvider,
+      components: newComps,
+      connections: newConns
+    });
   };
 
   const handleReset = () => {
-    setResult(null);
-    setScenarioName('10x Traffic Spike');
-    setScenarioType('traffic_increase');
-    setMultiplier(10);
+    setFrontendTech('React (Vite SPA)');
+    setBackendTech('FastAPI (Python)');
+    setDatabaseTech('PostgreSQL');
+    setHasCache(true);
+    setMonthlyTraffic(100000);
+    setBackendInstances(2);
+    setCloudProvider('aws');
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
       {/* Header Banner */}
-      <div style={{ background: 'linear-gradient(135deg, rgba(56, 189, 248, 0.12), rgba(129, 140, 248, 0.08))', border: '1px solid rgba(56, 189, 248, 0.25)', borderRadius: '8px', padding: '12px 14px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-          <Sparkles size={16} color="#38bdf8" />
-          <span style={{ fontSize: '0.88rem', fontWeight: 700, color: '#f8fafc' }}>
-            Architecture What-If Simulator
-          </span>
-          <span className="opt-badge" style={{ background: 'rgba(56, 189, 248, 0.2)', color: '#38bdf8', fontSize: '0.62rem' }}>
-            SCENARIO-BASED
-          </span>
-        </div>
-        <p style={{ margin: 0, fontSize: '0.74rem', color: '#94a3b8', lineHeight: 1.4 }}>
-          Experiment with hypothetical conditions before building real infrastructure.
-          Calculate component saturation, cost changes, and failure blast-radii.
-        </p>
-      </div>
-
-      {/* Suggested Quick Question Chips */}
-      <div>
-        <span style={{ fontSize: '0.72rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '8px' }}>
-          💡 Try Common Questions:
-        </span>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-          {PRESET_SCENARIOS.map((p, idx) => (
-            <button
-              key={idx}
-              className="action-chip"
-              onClick={() => handleSelectPreset(p)}
-              style={{
-                fontSize: '0.68rem',
-                background: scenarioName === p.name ? 'rgba(56, 189, 248, 0.2)' : 'rgba(255, 255, 255, 0.04)',
-                border: scenarioName === p.name ? '1px solid #38bdf8' : '1px solid rgba(255, 255, 255, 0.08)',
-                color: scenarioName === p.name ? '#38bdf8' : '#cbd5e1',
-                padding: '4px 10px',
-                borderRadius: '16px',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease'
-              }}
-            >
-              {p.title}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Simulation Controls Card */}
-      <div style={{ background: '#0b1120', border: '1px solid #1e293b', borderRadius: '8px', padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+      <div className="card" style={{ background: '#ffffff', border: '1px solid #e2e8f0', padding: '14px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
           <div>
-            <label style={{ fontSize: '0.7rem', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>
-              Scenario Name
-            </label>
-            <input
-              type="text"
-              value={scenarioName}
-              onChange={(e) => setScenarioName(e.target.value)}
-              className="glass-input"
-              style={{ width: '100%', fontSize: '0.75rem', padding: '6px 8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '4px', color: '#f8fafc' }}
-            />
+            <div style={{ fontSize: '0.96rem', fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <SlidersHorizontal size={18} color="#2563eb" />
+              <span>Interactive What-If Architecture Simulator</span>
+            </div>
+            <p style={{ fontSize: '0.76rem', color: '#64748b', marginTop: '3px' }}>
+              Hypothetically alter frontend framework, backend runtime, database engine, caching tier, backend instances, and traffic to preview live cost and resilience impacts.
+            </p>
           </div>
 
-          <div>
-            <label style={{ fontSize: '0.7rem', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>
-              Scenario Type
-            </label>
+          <button
+            className="btn btn-secondary btn-sm"
+            onClick={handleReset}
+            style={{ fontSize: '0.72rem', padding: '4px 10px' }}
+          >
+            <RotateCcw size={12} />
+            <span>Reset Scenario</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Real-Time Impact Metric Cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px' }}>
+        {/* Estimated Cost */}
+        <div className="card" style={{ background: '#ffffff', border: '1px solid #e2e8f0', padding: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 600 }}>WHAT-IF ESTIMATED COST</span>
+            <DollarSign size={14} color="#16a34a" />
+          </div>
+          <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#0f172a', marginTop: '2px' }}>
+            ${calculatedCost.toFixed(2)}
+            <span style={{ fontSize: '0.75rem', fontWeight: 500, color: '#64748b' }}> / mo</span>
+          </div>
+          <div style={{ fontSize: '0.68rem', marginTop: '2px', color: costDelta >= 0 ? '#b45309' : '#16a34a', fontWeight: 600 }}>
+            {costDelta >= 0 ? `+$${costDelta.toFixed(2)} vs baseline` : `-$${Math.abs(costDelta).toFixed(2)} savings`}
+          </div>
+        </div>
+
+        {/* Health Score */}
+        <div className="card" style={{ background: '#ffffff', border: '1px solid #e2e8f0', padding: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 600 }}>SIMULATED HEALTH SCORE</span>
+            <HeartPulse size={14} color="#2563eb" />
+          </div>
+          <div style={{ fontSize: '1.25rem', fontWeight: 800, color: calculatedHealth >= 75 ? '#16a34a' : '#d97706', marginTop: '2px' }}>
+            {calculatedHealth}
+            <span style={{ fontSize: '0.75rem', fontWeight: 500, color: '#64748b' }}> / 100</span>
+          </div>
+          <div style={{ fontSize: '0.68rem', marginTop: '2px', color: healthDelta >= 0 ? '#16a34a' : '#dc2626', fontWeight: 600 }}>
+            {healthDelta >= 0 ? `+${healthDelta} pts resilience improvement` : `${healthDelta} pts reliability penalty`}
+          </div>
+        </div>
+
+        {/* Peak Concurrency */}
+        <div className="card" style={{ background: '#ffffff', border: '1px solid #e2e8f0', padding: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 600 }}>PEAK CONCURRENCY CAPACITY</span>
+            <Cpu size={14} color="#0284c7" />
+          </div>
+          <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#0f172a', marginTop: '2px' }}>
+            ~{(backendInstances * 350).toLocaleString()} RPS
+          </div>
+          <div style={{ fontSize: '0.68rem', marginTop: '2px', color: '#64748b' }}>
+            {backendInstances}x distributed compute instances
+          </div>
+        </div>
+      </div>
+
+      {/* Parameter Adjustment Controls */}
+      <div className="card" style={{ background: '#ffffff', border: '1px solid #e2e8f0', padding: '14px' }}>
+        <div style={{ fontSize: '0.84rem', fontWeight: 700, color: '#0f172a', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <SlidersHorizontal size={15} color="#2563eb" />
+          <span>Interactive Scenario Levers</span>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '12px' }}>
+          {/* Frontend Technology */}
+          <div className="form-group">
+            <label className="form-label">Frontend Technology</label>
             <select
-              value={scenarioType}
-              onChange={(e) => setScenarioType(e.target.value)}
-              style={{ width: '100%', fontSize: '0.75rem', padding: '6px 8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '4px', color: '#f8fafc' }}
+              className="select-custom"
+              value={frontendTech}
+              onChange={(e) => setFrontendTech(e.target.value)}
             >
-              <option value="traffic_increase">1. Traffic Increase (Surge)</option>
-              <option value="traffic_decrease">2. Traffic Decrease (Low Season)</option>
-              <option value="component_failure">3. Component Failure (Outage)</option>
-              <option value="component_removal">4. Component Removal</option>
-              <option value="component_addition">5. Component Addition</option>
-              <option value="technology_change">6. Technology Migration</option>
-              <option value="budget_constraint">7. Budget Constraint</option>
-              <option value="storage_growth">8. Storage Growth</option>
-              <option value="user_growth">9. User Growth (Scale)</option>
-              <option value="custom">10. Custom Scenario</option>
+              <option value="React (Vite SPA)">React (Vite Single Page App)</option>
+              <option value="Next.js (React Hybrid SSR)">Next.js (SSR / Hybrid)</option>
+              <option value="Vue.js (Vite)">Vue.js 3</option>
             </select>
           </div>
-        </div>
 
-        {/* Dynamic Parameter Section */}
-        <div style={{ background: '#070b14', border: '1px solid #1e293b', borderRadius: '6px', padding: '10px' }}>
-          {scenarioType === 'traffic_increase' && (
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: '#cbd5e1', marginBottom: '6px' }}>
-                <span>Traffic Multiplier:</span>
-                <span style={{ fontWeight: 700, color: '#38bdf8' }}>{multiplier}x Peak Load ({ (100 * multiplier).toLocaleString() } RPS)</span>
-              </div>
-              <input
-                type="range"
-                min="2"
-                max="50"
-                step="1"
-                value={multiplier}
-                onChange={(e) => setMultiplier(parseInt(e.target.value))}
-                style={{ width: '100%', accentColor: '#38bdf8' }}
-              />
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.62rem', color: '#64748b', marginTop: '2px' }}>
-                <span>2x (~200 RPS)</span>
-                <span>10x (Black Friday)</span>
-                <span>50x (Flash Sale 5,000 RPS)</span>
-              </div>
-            </div>
-          )}
-
-          {(scenarioType === 'component_failure' || scenarioType === 'component_removal') && (
-            <div>
-              <label style={{ fontSize: '0.72rem', color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>
-                Select Target Component to {scenarioType === 'component_failure' ? 'Fail' : 'Remove'}:
-              </label>
-              <select
-                value={targetComponent}
-                onChange={(e) => setTargetComponent(e.target.value)}
-                style={{ width: '100%', fontSize: '0.75rem', padding: '6px', background: '#0f172a', border: '1px solid #334155', borderRadius: '4px', color: '#f8fafc' }}
-              >
-                {architecture?.components?.map(c => (
-                  <option key={c.id} value={c.id}>
-                    {c.name} ({c.role || c.type})
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {scenarioType === 'budget_constraint' && (
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: '#cbd5e1', marginBottom: '6px' }}>
-                <span>Monthly Budget Cap:</span>
-                <span style={{ fontWeight: 700, color: '#10b981' }}>${budgetVal}/month (approx. ₹{(budgetVal * 83).toLocaleString()})</span>
-              </div>
-              <input
-                type="range"
-                min="25"
-                max="1000"
-                step="25"
-                value={budgetVal}
-                onChange={(e) => setBudgetVal(parseInt(e.target.value))}
-                style={{ width: '100%', accentColor: '#10b981' }}
-              />
-            </div>
-          )}
-
-          {scenarioType === 'user_growth' && (
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: '#cbd5e1', marginBottom: '6px' }}>
-                <span>Projected User Horizon:</span>
-                <span style={{ fontWeight: 700, color: '#a855f7' }}>{userGrowthVal.toLocaleString()} Users</span>
-              </div>
-              <input
-                type="range"
-                min="50000"
-                max="5000000"
-                step="50000"
-                value={userGrowthVal}
-                onChange={(e) => setUserGrowthVal(parseInt(e.target.value))}
-                style={{ width: '100%', accentColor: '#a855f7' }}
-              />
-            </div>
-          )}
-
-          {scenarioType === 'technology_change' && (
-            <div>
-              <label style={{ fontSize: '0.72rem', color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>
-                Migrate Backend Services To:
-              </label>
-              <select
-                value={toTechVal}
-                onChange={(e) => setToTechVal(e.target.value)}
-                style={{ width: '100%', fontSize: '0.75rem', padding: '6px', background: '#0f172a', border: '1px solid #334155', borderRadius: '4px', color: '#f8fafc' }}
-              >
-                <option value="Python/FastAPI">Python / FastAPI (Async ASGI + AI)</option>
-                <option value="Node.js/Express">Node.js / Express (TypeScript)</option>
-                <option value="Go/Fiber">Go / Fiber (High Concurrency)</option>
-                <option value="Java/Spring Boot">Java / Spring Boot (Enterprise)</option>
-              </select>
-            </div>
-          )}
-        </div>
-
-        {/* Buttons */}
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <button
-            onClick={() => handleRunSimulation()}
-            disabled={isLoading}
-            className="primary-btn"
-            style={{ flex: 1, padding: '8px 12px', fontSize: '0.78rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-          >
-            <Play size={14} />
-            {isLoading ? 'Simulating...' : 'Run What-If Simulation'}
-          </button>
-          <button
-            onClick={handleReset}
-            disabled={isLoading}
-            className="secondary-btn"
-            style={{ padding: '8px 12px', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '4px' }}
-          >
-            <RotateCcw size={14} />
-            Reset
-          </button>
-        </div>
-
-        {/* Loading Progress State */}
-        {isLoading && (
-          <div style={{ background: 'rgba(56, 189, 248, 0.08)', border: '1px solid rgba(56, 189, 248, 0.2)', borderRadius: '6px', padding: '8px 12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <div className="pulse-indicator" style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#38bdf8' }} />
-            <span style={{ fontSize: '0.72rem', color: '#38bdf8' }}>{loadingStep}</span>
-          </div>
-        )}
-      </div>
-
-      {/* Simulation Results Display */}
-      {result && !isLoading && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          {/* Delta Highlights Banner */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
-            <div style={{ background: '#0b1120', border: '1px solid #1e293b', borderRadius: '6px', padding: '8px 10px' }}>
-              <span style={{ fontSize: '0.64rem', color: '#94a3b8', display: 'block' }}>Throughput</span>
-              <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#f8fafc' }}>
-                {result.traffic_impact?.projected_rps} RPS
-              </span>
-              <span style={{ fontSize: '0.62rem', color: result.delta?.rps_delta > 0 ? '#38bdf8' : '#94a3b8', display: 'block' }}>
-                +{result.delta?.rps_delta} RPS delta
-              </span>
-            </div>
-
-            <div style={{ background: '#0b1120', border: '1px solid #1e293b', borderRadius: '6px', padding: '8px 10px' }}>
-              <span style={{ fontSize: '0.64rem', color: '#94a3b8', display: 'block' }}>Backend Saturation</span>
-              <span style={{ fontSize: '0.9rem', fontWeight: 700, color: result.performance_impact?.backend_load_pct > 80 ? '#f43f5e' : (result.performance_impact?.backend_load_pct > 60 ? '#f59e0b' : '#10b981') }}>
-                {result.performance_impact?.backend_load_pct}%
-              </span>
-              <span style={{ fontSize: '0.62rem', color: '#94a3b8', display: 'block' }}>
-                Latency: ~{result.performance_impact?.avg_latency_ms}ms
-              </span>
-            </div>
-
-            <div style={{ background: '#0b1120', border: '1px solid #1e293b', borderRadius: '6px', padding: '8px 10px' }}>
-              <span style={{ fontSize: '0.64rem', color: '#94a3b8', display: 'block' }}>DB Pressure</span>
-              <span style={{ fontSize: '0.9rem', fontWeight: 700, color: result.performance_impact?.database_load_pct > 80 ? '#f43f5e' : '#10b981' }}>
-                {result.performance_impact?.database_load_pct}%
-              </span>
-              <span style={{ fontSize: '0.62rem', color: '#94a3b8', display: 'block' }}>
-                Cache hit: {result.performance_impact?.cache_hit_rate_pct}%
-              </span>
-            </div>
-
-            <div style={{ background: '#0b1120', border: '1px solid #1e293b', borderRadius: '6px', padding: '8px 10px' }}>
-              <span style={{ fontSize: '0.64rem', color: '#94a3b8', display: 'block' }}>Est. Cost (AWS)</span>
-              <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#f8fafc' }}>
-                ${result.cost_impact?.simulated_aws_cost}
-              </span>
-              <span style={{ fontSize: '0.62rem', color: result.delta?.cost_delta_usd >= 0 ? '#f43f5e' : '#10b981', display: 'block' }}>
-                {result.delta?.cost_delta_usd >= 0 ? `+$${result.delta?.cost_delta_usd}/mo` : `-$${Math.abs(result.delta?.cost_delta_usd)}/mo`}
-              </span>
-            </div>
+          {/* Backend Technology */}
+          <div className="form-group">
+            <label className="form-label">Backend Technology Runtime</label>
+            <select
+              className="select-custom"
+              value={backendTech}
+              onChange={(e) => setBackendTech(e.target.value)}
+            >
+              <option value="FastAPI (Python)">FastAPI (Python Async)</option>
+              <option value="Node.js (Express)">Node.js (Express / Fastify)</option>
+              <option value="Go (Gin / Fiber)">Go (Gin / Goroutines)</option>
+              <option value="Spring Boot (Java)">Spring Boot (Java 21)</option>
+            </select>
           </div>
 
-          {/* Bottlenecks Detected */}
-          {result.bottlenecks?.length > 0 && (
-            <div style={{ background: 'rgba(244, 63, 94, 0.1)', border: '1px solid rgba(244, 63, 94, 0.3)', borderRadius: '6px', padding: '10px 12px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
-                <AlertTriangle size={14} color="#f43f5e" />
-                <span style={{ fontSize: '0.76rem', fontWeight: 700, color: '#fda4af' }}>
-                  Critical Bottlenecks Detected Under Scenario
-                </span>
-              </div>
-              {result.bottlenecks.map((b, idx) => (
-                <div key={idx} style={{ fontSize: '0.72rem', color: '#fecdd3', marginBottom: '4px' }}>
-                  • <b>{b.component}:</b> {b.metric} — {b.explanation}
-                </div>
-              ))}
-            </div>
-          )}
+          {/* Database Engine */}
+          <div className="form-group">
+            <label className="form-label">Database Engine</label>
+            <select
+              className="select-custom"
+              value={databaseTech}
+              onChange={(e) => setDatabaseTech(e.target.value)}
+            >
+              <option value="PostgreSQL">PostgreSQL (Relational ACID)</option>
+              <option value="MongoDB">MongoDB (Document Store)</option>
+              <option value="Amazon DynamoDB">Amazon DynamoDB (Serverless NoSQL)</option>
+              <option value="MySQL">MySQL (Relational)</option>
+            </select>
+          </div>
 
-          {/* Actionable Recommendations */}
-          <div style={{ background: '#0b1120', border: '1px solid #1e293b', borderRadius: '6px', padding: '12px' }}>
-            <span style={{ fontSize: '0.74rem', fontWeight: 700, color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
-              <Sparkles size={14} color="#38bdf8" />
-              Scenario-Based Recommendations:
-            </span>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              {result.recommendations?.map((r, idx) => (
-                <div key={idx} style={{ fontSize: '0.72rem', color: '#cbd5e1', display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
-                  <CheckCircle2 size={13} color="#10b981" style={{ flexShrink: 0, marginTop: '2px' }} />
-                  <span>{r}</span>
-                </div>
-              ))}
-            </div>
-
-            {/* Optional apply simulated architecture */}
-            {result.simulated_architecture && (
+          {/* Cache Tier Toggle */}
+          <div className="form-group">
+            <label className="form-label">In-Memory Cache Tier</label>
+            <div style={{ display: 'flex', gap: '6px' }}>
               <button
-                onClick={() => onApplySimulatedArchitecture && onApplySimulatedArchitecture(result.simulated_architecture)}
-                style={{
-                  marginTop: '10px',
-                  width: '100%',
-                  background: 'rgba(56, 189, 248, 0.15)',
-                  border: '1px solid #38bdf8',
-                  color: '#38bdf8',
-                  padding: '6px 10px',
-                  borderRadius: '4px',
-                  fontSize: '0.72rem',
-                  fontWeight: 600,
-                  cursor: 'pointer'
-                }}
+                type="button"
+                className={`btn btn-sm ${hasCache ? 'btn-primary' : 'btn-secondary'}`}
+                style={{ flex: 1, fontSize: '0.72rem' }}
+                onClick={() => setHasCache(true)}
               >
-                Apply Simulated Architecture to Active Canvas
+                Redis Cache (Active)
               </button>
-            )}
+              <button
+                type="button"
+                className={`btn btn-sm ${!hasCache ? 'btn-primary' : 'btn-secondary'}`}
+                style={{ flex: 1, fontSize: '0.72rem' }}
+                onClick={() => setHasCache(false)}
+              >
+                No Cache
+              </button>
+            </div>
           </div>
 
-          <div style={{ fontSize: '0.62rem', color: '#64748b', fontStyle: 'italic', textAlign: 'center' }}>
-            {result.disclaimer}
+          {/* Backend Instances Scale */}
+          <div className="form-group">
+            <label className="form-label">Number of Backend Compute Instances</label>
+            <div style={{ display: 'flex', gap: '4px' }}>
+              {[1, 2, 4, 8, 16].map((count) => (
+                <button
+                  key={count}
+                  type="button"
+                  className={`btn btn-sm ${backendInstances === count ? 'btn-primary' : 'btn-secondary'}`}
+                  style={{ flex: 1, fontSize: '0.72rem' }}
+                  onClick={() => setBackendInstances(count)}
+                >
+                  {count}x
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Monthly Traffic */}
+          <div className="form-group">
+            <label className="form-label">Simulated Monthly Traffic</label>
+            <select
+              className="select-custom"
+              value={monthlyTraffic}
+              onChange={(e) => setMonthlyTraffic(Number(e.target.value))}
+            >
+              <option value={10000}>10,000 users / mo (~12 RPS)</option>
+              <option value={100000}>100,000 users / mo (~120 RPS)</option>
+              <option value={1000000}>1,000,000 users / mo (~1,200 RPS)</option>
+              <option value={5000000}>5,000,000 users / mo (~6,000 RPS)</option>
+            </select>
+          </div>
+
+          {/* Cloud Provider Target */}
+          <div className="form-group">
+            <label className="form-label">Target Cloud Provider</label>
+            <div style={{ display: 'flex', gap: '6px' }}>
+              <button
+                type="button"
+                className={`btn btn-sm ${cloudProvider === 'aws' ? 'btn-primary' : 'btn-secondary'}`}
+                style={{ flex: 1, fontSize: '0.72rem' }}
+                onClick={() => setCloudProvider('aws')}
+              >
+                AWS (Amazon)
+              </button>
+              <button
+                type="button"
+                className={`btn btn-sm ${cloudProvider === 'gcp' ? 'btn-primary' : 'btn-secondary'}`}
+                style={{ flex: 1, fontSize: '0.72rem' }}
+                onClick={() => setCloudProvider('gcp')}
+              >
+                GCP (Google Cloud)
+              </button>
+            </div>
           </div>
         </div>
-      )}
+
+        {/* Action Button: Apply What-If to Studio */}
+        <div style={{ marginTop: '14px', display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+          {onApplySimulatedArchitecture && (
+            <button
+              className="btn btn-primary"
+              onClick={handleApply}
+              style={{ fontSize: '0.78rem', padding: '8px 16px' }}
+            >
+              <Sparkles size={14} />
+              <span>Apply This What-If Scenario to Canvas</span>
+            </button>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
